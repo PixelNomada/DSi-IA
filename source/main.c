@@ -1,1058 +1,485 @@
 #include <nds.h>
+#include <fat.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <math.h>
-
-PrintConsole consolaTop;
-PrintConsole consolaBottom;
-Keyboard *kbd;
-
-/* =========================================================
-   SELECCION DE PANTALLAS
-   ========================================================= */
-
-void seleccionar_top(void)
-{
-    consoleSelect(&consolaTop);
-}
-
-void seleccionar_bottom(void)
-{
-    consoleSelect(&consolaBottom);
-}
-
-/* =========================================================
-   COLORES
-   ========================================================= */
-
-void color(int c)
-{
-    consoleSetColor(NULL, (ConsoleColor)c);
-}
-
-/* =========================================================
-   VARIABLES DE LA CALCULADORA
-   ========================================================= */
-
-char entrada[64] = "0";
-char expresion[96] = "";
-
-double izquierda = 0.0;
-double ans = 0.0;
-double memoria = 0.0;
-
-char operacion = 0;
-
-int nuevaEntrada = 1;
-int angulo = 0;
-int modoSCI = 0;
-int errorCalc = 0;
-
-#define PI 3.14159265358979323846
-
-/* =========================================================
-   VALOR ACTUAL
-   ========================================================= */
-
-double valorActual(void)
-{
-    return strtod(entrada, NULL);
-}
-
-void ponerNumero(double n)
-{
-    if (isnan(n) || isinf(n)) {
-        strcpy(entrada, "ERROR");
-        errorCalc = 1;
-        return;
-    }
-
-    if (modoSCI)
-        sprintf(entrada, "%.8e", n);
-    else
-        sprintf(entrada, "%.10g", n);
-
-    nuevaEntrada = 0;
-}
-
-/* =========================================================
-   LIMPIAR
-   ========================================================= */
-
-void limpiar(void)
-{
-    strcpy(entrada, "0");
-    expresion[0] = '\0';
-
-    izquierda = 0.0;
-    operacion = 0;
-
-    nuevaEntrada = 1;
-    errorCalc = 0;
-}
-
-/* =========================================================
-   ANGULOS
-   ========================================================= */
-
-double convertirAngulo(double x)
-{
-    if (angulo == 0)
-        return x * PI / 180.0;
-
-    if (angulo == 2)
-        return x * PI / 200.0;
-
-    return x;
-}
-
-const char *nombreAngulo(void)
-{
-    if (angulo == 0)
-        return "DEG";
-
-    if (angulo == 1)
-        return "RAD";
-
-    return "GRAD";
-}
-
-void cambiarAngulo(void)
-{
-    angulo++;
-
-    if (angulo > 2)
-        angulo = 0;
-}
-
-/* =========================================================
-   NUMEROS
-   ========================================================= */
-
-void digito(char d)
-{
-    if (errorCalc)
-        limpiar();
-
-    if (nuevaEntrada) {
-        entrada[0] = d;
-        entrada[1] = '\0';
-        nuevaEntrada = 0;
-        return;
-    }
-
-    if (strlen(entrada) < 28)
-        strncat(entrada, &d, 1);
-}
-
-void dobleCero(void)
-{
-    if (nuevaEntrada) {
-        strcpy(entrada, "0");
-        nuevaEntrada = 0;
-        return;
-    }
-
-    if (strlen(entrada) < 26)
-        strcat(entrada, "00");
-}
-
-void tripleCero(void)
-{
-    if (nuevaEntrada) {
-        strcpy(entrada, "0");
-        nuevaEntrada = 0;
-        return;
-    }
-
-    if (strlen(entrada) < 25)
-        strcat(entrada, "000");
-}
-
-void decimal(void)
-{
-    if (errorCalc)
-        limpiar();
-
-    if (nuevaEntrada) {
-        strcpy(entrada, "0.");
-        nuevaEntrada = 0;
-        return;
-    }
-
-    if (!strchr(entrada, '.'))
-        strcat(entrada, ".");
-}
-
-void borrar(void)
-{
-    int n;
-
-    if (errorCalc) {
-        limpiar();
-        return;
-    }
-
-    n = strlen(entrada);
-
-    if (nuevaEntrada || n <= 1) {
-        strcpy(entrada, "0");
-        nuevaEntrada = 0;
-        return;
-    }
-
-    entrada[n - 1] = '\0';
-
-    if (!strcmp(entrada, "-"))
-        strcpy(entrada, "0");
-}
-
-void cambiarSigno(void)
-{
-    double x;
-
-    if (errorCalc)
-        return;
-
-    x = valorActual();
-
-    if (x == 0)
-        return;
-
-    ponerNumero(-x);
-}
-
-/* =========================================================
-   OPERACIONES BASICAS Y CIENTIFICAS
-   ========================================================= */
-
-double calcular(double a, double b, char op)
-{
-    int ia;
-    int ib;
-    int i;
-    double r;
-
-    if (op == '+')
-        return a + b;
-
-    if (op == '-')
-        return a - b;
-
-    if (op == '*')
-        return a * b;
-
-    if (op == '/') {
-        if (b == 0)
-            return NAN;
-
-        return a / b;
-    }
-
-    if (op == '^')
-        return pow(a, b);
-
-    /* nPr */
-    if (op == 'P') {
-        ia = (int)a;
-        ib = (int)b;
-
-        if (ia < 0 || ib < 0 || ib > ia)
-            return NAN;
-
-        r = 1.0;
-
-        for (i = 0; i < ib; i++)
-            r *= (double)(ia - i);
-
-        return r;
-    }
-
-    /* nCr */
-    if (op == 'C') {
-        ia = (int)a;
-        ib = (int)b;
-
-        if (ia < 0 || ib < 0 || ib > ia)
-            return NAN;
-
-        r = 1.0;
-
-        for (i = 1; i <= ib; i++)
-            r *= (double)(ia - ib + i) / (double)i;
-
-        return r;
-    }
-
-    return b;
-}
-
-void prepararOperacion(char op)
-{
-    double resultado;
-
-    if (errorCalc)
-        return;
-
-    if (operacion != 0 && !nuevaEntrada) {
-
-        resultado = calcular(
-            izquierda,
-            valorActual(),
-            operacion
-        );
-
-        if (isnan(resultado) || isinf(resultado)) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            operacion = 0;
-            return;
-        }
-
-        izquierda = resultado;
-        ponerNumero(resultado);
-
-    } else {
-
-        izquierda = valorActual();
-    }
-
-    operacion = op;
-    nuevaEntrada = 1;
-
-    sprintf(
-        expresion,
-        "%.10g %c",
-        izquierda,
-        op == 'P' ? 'P' :
-        op == 'C' ? 'C' :
-        op
-    );
-}
-
-void igual(void)
-{
-    double resultado;
-
-    if (!operacion || errorCalc)
-        return;
-
-    resultado = calcular(
-        izquierda,
-        valorActual(),
-        operacion
-    );
-
-    if (isnan(resultado) || isinf(resultado)) {
-        strcpy(entrada, "ERROR");
-        errorCalc = 1;
-        operacion = 0;
-        return;
-    }
-
-    ans = resultado;
-
-    ponerNumero(resultado);
-
-    expresion[0] = '\0';
-
-    operacion = 0;
-    nuevaEntrada = 1;
-}
-
-/* =========================================================
-   FUNCIONES CIENTIFICAS
-   ========================================================= */
-
-void funcionUnaria(int f)
-{
-    double x;
-    double r;
-    double c;
-    int i;
-
-    x = valorActual();
-    r = x;
-
-    if (errorCalc)
-        return;
-
-    /* SIN */
-    if (f == 1)
-        r = sin(convertirAngulo(x));
-
-    /* COS */
-    if (f == 2)
-        r = cos(convertirAngulo(x));
-
-    /* TAN */
-    if (f == 3) {
-
-        c = cos(convertirAngulo(x));
-
-        if (fabs(c) < 0.000000001) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            return;
-        }
-
-        r = tan(convertirAngulo(x));
-    }
-
-    /* LOG */
-    if (f == 4) {
-
-        if (x <= 0) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            return;
-        }
-
-        r = log10(x);
-    }
-
-    /* LN */
-    if (f == 5) {
-
-        if (x <= 0) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            return;
-        }
-
-        r = log(x);
-    }
-
-    /* RAIZ */
-    if (f == 6) {
-
-        if (x < 0) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            return;
-        }
-
-        r = sqrt(x);
-    }
-
-    /* X2 */
-    if (f == 7)
-        r = x * x;
-
-    /* 1/X */
-    if (f == 8) {
-
-        if (x == 0) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            return;
-        }
-
-        r = 1.0 / x;
-    }
-
-    /* ABS */
-    if (f == 9)
-        r = fabs(x);
-
-    /* FACTORIAL */
-    if (f == 10) {
-
-        if (x < 0 || x != floor(x) || x > 170) {
-            strcpy(entrada, "ERROR");
-            errorCalc = 1;
-            return;
-        }
-
-        r = 1.0;
-
-        for (i = 1; i <= (int)x; i++)
-            r *= i;
-    }
-
-    /* PORCENTAJE */
-    if (f == 11)
-        r = x / 100.0;
-
-    /* PI */
-    if (f == 12)
-        r = PI;
-
-    /* E */
-    if (f == 13)
-        r = 2.718281828459045;
-
-    /* 10^X */
-    if (f == 14)
-        r = pow(10.0, x);
-
-    /* E^X */
-    if (f == 15)
-        r = exp(x);
-
-    /* ENTERO */
-    if (f == 16)
-        r = floor(x);
-
-    if (isnan(r) || isinf(r)) {
-        strcpy(entrada, "ERROR");
-        errorCalc = 1;
-        return;
-    }
-
-    ans = r;
-
-    ponerNumero(r);
-}
-
-/* =========================================================
-   MEMORIA
-   ========================================================= */
-
-void memoriaMas(void)
-{
-    if (!errorCalc)
-        memoria += valorActual();
-}
-
-void memoriaMenos(void)
-{
-    if (!errorCalc)
-        memoria -= valorActual();
-}
-
-void memoriaClear(void)
-{
-    memoria = 0.0;
-}
-
-void memoriaRecall(void)
-{
-    ponerNumero(memoria);
-}
-
-/* =========================================================
-   PANTALLA SUPERIOR
-   ========================================================= */
-
-void mostrarTop(void)
-{
-    seleccionar_top();
-
-    consoleClear();
-
-    color(CONSOLE_CYAN);
-    printf("     CALCULADORA CIENTIFICA\n");
-
-    color(CONSOLE_WHITE);
-    printf("-------------------------------\n");
-
-    color(CONSOLE_YELLOW);
-    printf("EXP: ");
-
-    color(CONSOLE_WHITE);
-
-    if (expresion[0])
-        printf("%s\n", expresion);
-    else
-        printf("-\n");
-
-    color(CONSOLE_GREEN);
-    printf("\nRESULTADO\n");
-
-    color(CONSOLE_WHITE);
-    printf("> %s\n", entrada);
-
-    printf("\n");
-
-    color(CONSOLE_LIGHT_BLUE);
-    printf("ANGULO: %s\n", nombreAngulo());
-
-    printf("MEMORIA: %.8g\n", memoria);
-
-    color(CONSOLE_WHITE);
-    printf("\n");
-
-    color(CONSOLE_YELLOW);
-    printf("SIN COS TAN = trigonometria\n");
-    printf("LOG/LN = logaritmos\n");
-    printf("XY = potencia\n");
-    printf("NPR/NCR = combinaciones\n");
-
-    color(CONSOLE_WHITE);
-    printf("\n");
-
-    if (errorCalc) {
-        color(CONSOLE_RED);
-        printf("ERROR: pulsa AC\n");
-    } else {
-        color(CONSOLE_WHITE);
-        printf("Toca los botones de abajo.");
-    }
-}
-
-/* =========================================================
-   TECLADO DE LA CALCULADORA
-   ========================================================= */
-
-const char *botones[7][8] = {
-
-    {
-        "SIN", "COS", "TAN", "LOG",
-        "7", "8", "9", "/"
-    },
-
-    {
-        "LN", "SQRT", "X2", "XY",
-        "4", "5", "6", "*"
-    },
-
-    {
-        "1/X", "ABS", "N!", "%",
-        "1", "2", "3", "-"
-    },
-
-    {
-        "PI", "E", "DRG", "ANS",
-        "0", ".", "+/-", "+"
-    },
-
-    {
-        "NPR", "NCR", "10X", "EX",
-        "00", "000", "=", "+"
-    },
-
-    {
-        "AC", "DEL", "M+", "M-",
-        "MC", "MR", "", ""
-    },
-
-    {
-        "MODE", "CLR", "", "",
-        "", "", "", ""
-    }
+#include <stdlib.h>
+#include <ctype.h>
+
+#define IN 48
+#define HIST 8
+#define ARCH "DSiIA_KNOWLEDGE.DAT"
+
+typedef struct{const char*q,*r,*e,*c;}Pregunta;
+Keyboard*kbd=NULL;
+char hist[HIST][64];
+int nh=0,puntos=0,aciertos=0,hechas=0,sd=0;
+
+Pregunta banco[]={
+{"Cuanto es (-5) x 6?","-30","Negativo por positivo = negativo.","Matematicas"},
+{"Cuanto es 3/4 + 1/4?","1","3/4 + 1/4 = 1.","Matematicas"},
+{"Resuelve: 3x - 7 = 8","5","3x = 15, x = 5.","Matematicas"},
+{"Area de triangulo base 12 altura 5?","30","(12x5)/2 = 30.","Matematicas"},
+{"Perimetro de cuadrado lado 9?","36","4x9 = 36.","Matematicas"},
+{"Cuanto es 20% de 150?","30","0.20x150 = 30.","Matematicas"},
+{"Cuanto es 2 elevado a 6?","64","2^6 = 64.","Matematicas"},
+{"Raiz cuadrada de 121?","11","11x11 = 121.","Matematicas"},
+{"Simplifica 16/24","2/3","Dividir entre 8.","Matematicas"},
+{"Cuanto es 3/5 de 50?","30","3/5x50 = 30.","Matematicas"},
+
+{"Que es un verbo?","accion","Expresa acciones, estados o procesos.","Espanol"},
+{"Que es un sustantivo?","nombre","Nombra personas, animales, cosas o ideas.","Espanol"},
+{"Que es un adjetivo?","cualidad","Describe o califica al sustantivo.","Espanol"},
+{"Que es un adverbio?","modifica","Modifica al verbo, adjetivo u otro adverbio.","Espanol"},
+{"Que es el sujeto?","quien","Quien realiza la accion.","Espanol"},
+{"Que es el predicado?","verbo","Lo que se dice del sujeto.","Espanol"},
+{"Que es una metafora?","figura","Relaciona una cosa con otra sin usar como.","Espanol"},
+{"Que es un diptongo?","vocales","Dos vocales en una silaba.","Espanol"},
+{"Que es un hiato?","separacion","Dos vocales en silabas distintas.","Espanol"},
+{"Participio de escribir?","escrito","Escribir -> escrito.","Espanol"},
+
+{"Que es la quimica?","materia","Estudia la materia y sus transformaciones.","Quimica"},
+{"Que es un atomo?","particula","Unidad basica de un elemento.","Quimica"},
+{"Que es una molecula?","union","Union de dos o mas atomos.","Quimica"},
+{"Formula del agua?","h2o","Dos hidrogenos y un oxigeno.","Quimica"},
+{"Formula del dioxido de carbono?","co2","Un carbono y dos oxigenos.","Quimica"},
+{"Que es el pH?","acidez","Mide acidez o basicidad.","Quimica"},
+{"Particula con carga positiva?","proton","El proton tiene carga positiva.","Quimica"},
+{"Particula con carga negativa?","electron","El electron tiene carga negativa.","Quimica"},
+{"Particula sin carga?","neutron","El neutron es neutro.","Quimica"},
+{"Simbolo del hierro?","fe","Fe viene de ferrum.","Quimica"},
+
+{"Capital de Francia?","paris","Paris.","General"},
+{"Capital de Japon?","tokio","Tokio.","General"},
+{"Quien escribio Don Quijote?","cervantes","Miguel de Cervantes.","General"},
+{"Cuantos planetas hay?","8","Hay ocho planetas.","General"},
+{"Oceano mas grande?","pacifico","Oceano Pacifico.","General"},
+{"Quien pinto la Mona Lisa?","leonardo","Leonardo da Vinci.","General"},
+{"En que ano llego el hombre a la Luna?","1969","Fue en 1969.","General"},
+{"Metal liquido a temperatura ambiente?","mercurio","Mercurio.","General"}
 };
 
-/* =========================================================
-   DIBUJAR BOTONES
-   ========================================================= */
+int total=sizeof(banco)/sizeof(banco[0]);
 
-void dibujarBoton(const char *texto, int fila, int col)
-{
-    if (col < 4) {
-        color(CONSOLE_YELLOW);
-    } else {
-        if (col >= 4 && col <= 6)
-            color(CONSOLE_LIGHT_BLUE);
-        else
-            color(CONSOLE_WHITE);
-    }
-
-    printf("%-4s", texto);
-
-    if (col == 3)
-        printf(" ");
+void minus(char*s){
+ while(*s){*s=tolower((unsigned char)*s);s++;}
 }
 
-/* =========================================================
-   PANTALLA TACTIL
-   ========================================================= */
-
-void mostrarBottom(void)
-{
-    int f;
-    int c;
-
-    seleccionar_bottom();
-
-    consoleClear();
-
-    for (f = 0; f < 7; f++) {
-
-        for (c = 0; c < 8; c++)
-            dibujarBoton(botones[f][c], f, c);
-
-        printf("\n");
-    }
-
-    color(CONSOLE_WHITE);
-
-    printf("\n");
-    printf("DRG: DEG/RAD/GRAD\n");
-    printf("MODE: normal/cientifica");
+int tiene(const char*a,const char*b){
+ return strstr(a,b)!=NULL;
 }
 
-/* =========================================================
-   ACCIONES DE LOS BOTONES
-   ========================================================= */
-
-void tocar(int fila, int col)
-{
-    const char *b;
-
-    if (fila < 0 || fila > 6)
-        return;
-
-    if (col < 0 || col > 7)
-        return;
-
-    b = botones[fila][col];
-
-    if (!strcmp(b, ""))
-        return;
-
-    /* ---------------- NUMEROS ---------------- */
-
-    if (!strcmp(b, "0")) {
-        digito('0');
-        return;
-    }
-
-    if (!strcmp(b, "1")) {
-        digito('1');
-        return;
-    }
-
-    if (!strcmp(b, "2")) {
-        digito('2');
-        return;
-    }
-
-    if (!strcmp(b, "3")) {
-        digito('3');
-        return;
-    }
-
-    if (!strcmp(b, "4")) {
-        digito('4');
-        return;
-    }
-
-    if (!strcmp(b, "5")) {
-        digito('5');
-        return;
-    }
-
-    if (!strcmp(b, "6")) {
-        digito('6');
-        return;
-    }
-
-    if (!strcmp(b, "7")) {
-        digito('7');
-        return;
-    }
-
-    if (!strcmp(b, "8")) {
-        digito('8');
-        return;
-    }
-
-    if (!strcmp(b, "9")) {
-        digito('9');
-        return;
-    }
-
-    if (!strcmp(b, ".")) {
-        decimal();
-        return;
-    }
-
-    if (!strcmp(b, "00")) {
-        dobleCero();
-        return;
-    }
-
-    if (!strcmp(b, "000")) {
-        tripleCero();
-        return;
-    }
-
-    /* ---------------- OPERACIONES ---------------- */
-
-    if (!strcmp(b, "+")) {
-        prepararOperacion('+');
-        return;
-    }
-
-    if (!strcmp(b, "-")) {
-        prepararOperacion('-');
-        return;
-    }
-
-    if (!strcmp(b, "*")) {
-        prepararOperacion('*');
-        return;
-    }
-
-    if (!strcmp(b, "/")) {
-        prepararOperacion('/');
-        return;
-    }
-
-    if (!strcmp(b, "XY")) {
-        prepararOperacion('^');
-        return;
-    }
-
-    if (!strcmp(b, "NPR")) {
-        prepararOperacion('P');
-        return;
-    }
-
-    if (!strcmp(b, "NCR")) {
-        prepararOperacion('C');
-        return;
-    }
-
-    if (!strcmp(b, "=")) {
-        igual();
-        return;
-    }
-
-    /* ---------------- CIENTIFICAS ---------------- */
-
-    if (!strcmp(b, "SIN")) {
-        funcionUnaria(1);
-        return;
-    }
-
-    if (!strcmp(b, "COS")) {
-        funcionUnaria(2);
-        return;
-    }
-
-    if (!strcmp(b, "TAN")) {
-        funcionUnaria(3);
-        return;
-    }
-
-    if (!strcmp(b, "LOG")) {
-        funcionUnaria(4);
-        return;
-    }
-
-    if (!strcmp(b, "LN")) {
-        funcionUnaria(5);
-        return;
-    }
-
-    if (!strcmp(b, "SQRT")) {
-        funcionUnaria(6);
-        return;
-    }
-
-    if (!strcmp(b, "X2")) {
-        funcionUnaria(7);
-        return;
-    }
-
-    if (!strcmp(b, "1/X")) {
-        funcionUnaria(8);
-        return;
-    }
-
-    if (!strcmp(b, "ABS")) {
-        funcionUnaria(9);
-        return;
-    }
-
-    if (!strcmp(b, "N!")) {
-        funcionUnaria(10);
-        return;
-    }
-
-    if (!strcmp(b, "%")) {
-        funcionUnaria(11);
-        return;
-    }
-
-    if (!strcmp(b, "PI")) {
-        funcionUnaria(12);
-        return;
-    }
-
-    if (!strcmp(b, "E")) {
-        funcionUnaria(13);
-        return;
-    }
-
-    if (!strcmp(b, "10X")) {
-        funcionUnaria(14);
-        return;
-    }
-
-    if (!strcmp(b, "EX")) {
-        funcionUnaria(15);
-        return;
-    }
-
-    /* ---------------- OTROS ---------------- */
-
-    if (!strcmp(b, "+/-")) {
-        cambiarSigno();
-        return;
-    }
-
-    if (!strcmp(b, "DEL")) {
-        borrar();
-        return;
-    }
-
-    if (!strcmp(b, "AC")) {
-        limpiar();
-        return;
-    }
-
-    if (!strcmp(b, "DRG")) {
-        cambiarAngulo();
-        return;
-    }
-
-    /* ---------------- MEMORIA ---------------- */
-
-    if (!strcmp(b, "M+")) {
-        memoriaMas();
-        return;
-    }
-
-    if (!strcmp(b, "M-")) {
-        memoriaMenos();
-        return;
-    }
-
-    if (!strcmp(b, "MC")) {
-        memoriaClear();
-        return;
-    }
-
-    if (!strcmp(b, "MR")) {
-        memoriaRecall();
-        return;
-    }
-
-    /* ---------------- MODO ---------------- */
-
-    if (!strcmp(b, "MODE")) {
-
-        modoSCI = !modoSCI;
-
-        if (!errorCalc)
-            ponerNumero(valorActual());
-
-        return;
-    }
-
-    if (!strcmp(b, "CLR")) {
-        limpiar();
-        return;
-    }
+void histadd(const char*a,const char*b){
+ if(nh>=HIST){
+  for(int i=0;i<HIST-1;i++)strcpy(hist[i],hist[i+1]);
+  nh=HIST-1;
+ }
+ snprintf(hist[nh++],64,"%s: %s",a,b);
 }
 
-/* =========================================================
-   MAIN
-   ========================================================= */
+void histshow(){
+ printf("\x1b[2J====== DSi IA - Chat ======\n\n");
+ for(int i=0;i<nh;i++)printf("%s\n\n",hist[i]);
+}
 
-int main(void)
-{
-    touchPosition touch;
+void teclado(){
+ kbd=keyboardInit(NULL,3,BgType_Text4bpp,
+                  BgSize_T_256x512,20,0,false,true);
+ keyboardShow();
+}
 
-    int f;
-    int c;
+void ocultar(){
+ if(kbd)keyboardHide();
+}
 
-    /* ---------------- VIDEO ---------------- */
+int leer(char*b,int max){
+ int p=0;
+ b[0]=0;
+ printf("Tu: ");
 
-    videoSetMode(MODE_0_2D);
-    videoSetModeSub(MODE_0_2D);
+ while(1){
+  swiWaitForVBlank();
+  scanKeys();
+  int k=keyboardUpdate();
 
-    vramSetBankA(VRAM_A_MAIN_BG);
-    vramSetBankC(VRAM_C_SUB_BG);
+  if(k>0){
+   if(k==DVK_ENTER||k=='\n'){
+    b[p]=0;
+    return 1;
+   }
 
-    /* ---------------- CONSOLA SUPERIOR ---------------- */
+   if((k==DVK_BACKSPACE||k==8)&&p){
+    b[--p]=0;
+    printf("\b \b");
+   }
+   else if(k>=32&&k<127&&p<max-1){
+    b[p++]=(char)k;
+    b[p]=0;
+    printf("%c",k);
+   }
+  }
 
-    consoleInit(
-        &consolaTop,
-        0,
-        BgType_Text4bpp,
-        BgSize_T_256x256,
-        22,
-        3,
-        true,
-        true
-    );
+  if(keysDown()&KEY_A){
+   b[p]=0;
+   return 1;
+  }
 
-    /* ---------------- CONSOLA INFERIOR ---------------- */
+  if(keysDown()&KEY_B){
+   b[0]=0;
+   return 0;
+  }
+ }
+}
 
-    consoleInit(
-        &consolaBottom,
-        0,
-        BgType_Text4bpp,
-        BgSize_T_256x256,
-        22,
-        3,
-        false,
-        true
-    );
+void espera(){
+ while(1){
+  swiWaitForVBlank();
+  scanKeys();
+  if(keysDown()&KEY_A)return;
+ }
+}
 
-    /* ---------------- TECLADO ---------------- */
+/* ===== APRENDIZAJE ILIMITADO =====
+   Formato:
+   [2 bytes pregunta][2 bytes respuesta]
+   [pregunta][respuesta]
+*/
 
-    kbd = keyboardInit(
-        NULL,
-        3,
-        BgType_Text4bpp,
-        BgSize_T_256x512,
-        20,
-        0,
-        false,
-        true
-    );
+void guardar(const char*q,const char*r){
+ FILE*f;
+ unsigned short a=strlen(q),b=strlen(r);
 
-    keyboardHide();
+ if(!sd)return;
+ if(a>63)a=63;
+ if(b>127)b=127;
 
-    /* ---------------- INICIO ---------------- */
+ f=fopen(ARCH,"ab");
+ if(!f)return;
 
-    seleccionar_top();
-    consoleClear();
+ fwrite(&a,2,1,f);
+ fwrite(&b,2,1,f);
+ fwrite(q,1,a,f);
+ fwrite(r,1,b,f);
+ fclose(f);
+}
 
-    seleccionar_bottom();
-    consoleClear();
+int buscar(const char*preg,char*resp){
+ FILE*f;
+ unsigned short a,b;
+ char q[64],r[128],bus[64];
+ int encontrado=0;
 
-    mostrarTop();
-    mostrarBottom();
+ if(!sd)return 0;
 
-    /* ---------------- BUCLE ---------------- */
+ strncpy(bus,preg,63);
+ bus[63]=0;
+ minus(bus);
 
-    while (1) {
+ f=fopen(ARCH,"rb");
+ if(!f)return 0;
 
-        swiWaitForVBlank();
+ while(fread(&a,2,1,f)==1&&fread(&b,2,1,f)==1){
 
-        scanKeys();
+  if(a>63||b>127)break;
 
-        if (keysDown() & KEY_TOUCH) {
+  if(fread(q,1,a,f)!=a)break;
+  if(fread(r,1,b,f)!=b)break;
 
-            touchRead(&touch);
+  q[a]=0;
+  r[b]=0;
 
-            c = touch.px / 32;
-            f = touch.py / 24;
+  {
+   char x[64];
+   strncpy(x,q,63);
+   x[63]=0;
+   minus(x);
 
-            if (c > 7)
-                c = 7;
+   if(!strcmp(bus,x)||tiene(bus,x)||tiene(x,bus)){
+    strcpy(resp,r);
+    encontrado=1;
+   }
+  }
+ }
 
-            if (f > 6)
-                f = 6;
+ fclose(f);
+ return encontrado;
+}
 
-            tocar(f, c);
+int aprender_detectado(const char*s){
+ char x[IN];
+ strncpy(x,s,IN-1);
+ x[IN-1]=0;
+ minus(x);
+ return tiene(x,"aprender");
+}
 
-            mostrarTop();
-            mostrarBottom();
-        }
+void aprender(){
+ char q[64],r[128];
 
-        if (keysDown() & KEY_START)
-            break;
-    }
+ printf("\x1b[2J");
+ printf("======= MODO APRENDER =======\n\n");
+ printf("Escribe la pregunta:\n\n");
 
-    keyboardShow();
+ if(!leer(q,64)||!q[0])return;
 
-    return 0;
+ printf("\n\nEscribe la respuesta:\n\n");
+
+ if(!leer(r,128)||!r[0])return;
+
+ guardar(q,r);
+
+ printf("\x1b[2J");
+ printf("===== APRENDIDO CON EXITO =====\n\n");
+ printf("Se agrego a mi biblioteca.\n");
+ printf("Guardado automaticamente.\n\n");
+ printf("La biblioteca puede crecer\n");
+ printf("hasta llenar el espacio disponible.\n\n");
+ printf("Pulsa A...");
+ espera();
+}
+
+/* ===== CALCULADORA ===== */
+
+int calcular(const char*e,int*res){
+ char b[64],l[64],a[32]={0},c[32]={0};
+ char op=0;
+ int p=-1,j=0;
+
+ strncpy(b,e,63);
+ b[63]=0;
+ minus(b);
+
+ for(int i=0;b[i]&&j<63;i++)
+  if(b[i]!=' ')l[j++]=b[i];
+ l[j]=0;
+
+ for(int i=1;l[i];i++)
+  if(l[i]=='+'||l[i]=='-'||l[i]=='*'||
+     l[i]=='x'||l[i]=='/'||l[i]=='^'){
+   op=l[i]=='x'?'*':l[i];
+   p=i;
+   break;
+  }
+
+ if(p<0)return 0;
+
+ strncpy(a,l,p);
+ strcpy(c,l+p+1);
+
+ int x=atoi(a),y=atoi(c);
+
+ switch(op){
+  case '+':*res=x+y;break;
+  case '-':*res=x-y;break;
+  case '*':*res=x*y;break;
+  case '/':if(!y)return 0;*res=x/y;break;
+  case '^':
+   *res=1;
+   for(int i=0;i<y;i++)*res*=x;
+   break;
+  default:return 0;
+ }
+
+ return 1;
+}
+
+/* ===== CHAT ===== */
+
+void responder(const char*msg){
+ char m[IN],r[128];
+ int n;
+
+ if(buscar(msg,r)){
+  histadd("DSi IA",r);
+  histshow();
+  printf("\n%s\n",r);
+  return;
+ }
+
+ strncpy(m,msg,IN-1);
+ m[IN-1]=0;
+ minus(m);
+
+ strcpy(r,"No lo se todavia. Puedes ensenarme escribiendo APRENDER.");
+
+ if(tiene(m,"cuanto es")||tiene(m,"calcula")||
+    strchr(m,'+')||strchr(m,'-')||strchr(m,'*')||
+    strchr(m,'x')||strchr(m,'/')||strchr(m,'^')){
+  if(calcular(m,&n))
+   snprintf(r,128,"El resultado es: %d",n);
+ }
+ else if(tiene(m,"hola")||tiene(m,"buenos")||tiene(m,"buenas"))
+  strcpy(r,"Hola! Soy DSi IA. Preguntame o ensename algo.");
+ else if(tiene(m,"quien eres"))
+  strcpy(r,"Soy DSi IA, tu asistente escolar para DSi XL.");
+ else if(tiene(m,"que es la quimica")||tiene(m,"que es quimica"))
+  strcpy(r,"La Quimica estudia la materia, sus propiedades y transformaciones.");
+ else if(tiene(m,"que es un atomo"))
+  strcpy(r,"Un atomo es la unidad basica de un elemento. Tiene protones, neutrones y electrones.");
+ else if(tiene(m,"que es un verbo"))
+  strcpy(r,"Un verbo expresa acciones, estados o procesos.");
+ else if(tiene(m,"que es un sustantivo"))
+  strcpy(r,"Un sustantivo nombra personas, animales, cosas, lugares o ideas.");
+ else if(tiene(m,"gracias"))
+  strcpy(r,"De nada! Sigue aprendiendo.");
+ else if(tiene(m,"adios")||tiene(m,"hasta luego"))
+  strcpy(r,"Hasta luego! Que te vaya excelente.");
+
+ histadd("DSi IA",r);
+ histshow();
+ printf("\n%s\n",r);
+}
+
+void chat(){
+ char m[IN],x[IN];
+ nh=0;
+ teclado();
+
+ histadd("DSi IA","Hola! Escribe una pregunta.");
+ histadd("DSi IA","Si no se algo, escribe APRENDER.");
+
+ while(1){
+  histshow();
+  printf("\n----------------\n");
+
+  if(!leer(m,IN)||!m[0])continue;
+
+  strncpy(x,m,IN-1);
+  x[IN-1]=0;
+  minus(x);
+
+  if(tiene(x,"salir")||tiene(x,"menu"))break;
+
+  histadd("Tu",m);
+
+  if(aprender_detectado(m)){
+   aprender();
+   continue;
+  }
+
+  responder(m);
+  printf("\nPulsa A...");
+  espera();
+ }
+
+ ocultar();
+}
+
+/* ===== EXAMEN ===== */
+
+int correcta(const char*u,const char*c){
+ char a[IN],b[IN];
+
+ strncpy(a,u,IN-1);
+ strncpy(b,c,IN-1);
+ a[IN-1]=b[IN-1]=0;
+ minus(a);
+ minus(b);
+
+ return !strcmp(a,b)||tiene(a,b);
+}
+
+void jugar(const char*cat,int lec){
+ int idx[50],n=0;
+
+ for(int i=0;i<total;i++)
+  if(!cat||!strcmp(banco[i].c,cat))
+   idx[n++]=i;
+
+ if(!n)return;
+
+ for(int i=n-1;i>0;i--){
+  int j=rand()%(i+1);
+  int t=idx[i];idx[i]=idx[j];idx[j]=t;
+ }
+
+ int max=n<7?n:7;
+ teclado();
+
+ for(int q=0;q<max;q++){
+  Pregunta*p=&banco[idx[q]];
+  char r[IN];
+
+  printf("\x1b[2J%s\nPregunta %d/%d\n\n%s\n\n",
+         p->c,q+1,max,p->q);
+
+  leer(r,IN);
+  hechas++;
+
+  if(r[0]&&correcta(r,p->r)){
+   aciertos++;
+   puntos+=10;
+   printf("\n*** CORRECTO! ***\n");
+   if(lec)printf("\n%s\n",p->e);
+  }else
+   printf("\nIncorrecto.\nRespuesta: %s\n%s\n",p->r,p->e);
+
+  printf("\nPulsa A...");
+  espera();
+ }
+
+ ocultar();
+}
+
+/* ===== MENU ===== */
+
+void menu(){
+ ocultar();
+ printf("\x1b[2J");
+ printf("==============================\n");
+ printf("           DSi IA\n");
+ printf("      Asistente escolar\n");
+ printf("==============================\n\n");
+ printf("A - Examen\n");
+ printf("B - Leccion\n");
+ printf("X - Matematicas\n");
+ printf("Y - Espanol\n");
+ printf("L - Quimica\n");
+ printf("R - Cultura General\n");
+ printf("SELECT - Chat / Aprender\n");
+ printf("START - Salir\n\n");
+ printf("Puntos: %d | Aciertos: %d/%d\n",
+        puntos,aciertos,hechas);
+}
+
+int main(void){
+ videoSetMode(MODE_0_2D);
+ videoSetModeSub(MODE_0_2D);
+ vramSetBankA(VRAM_A_MAIN_BG);
+ vramSetBankC(VRAM_C_SUB_BG);
+
+ consoleInit(NULL,0,BgType_Text4bpp,
+            BgSize_T_256x256,22,3,true,true);
+ consoleInit(NULL,0,BgType_Text4bpp,
+            BgSize_T_256x256,22,3,false,true);
+
+ srand(2026);
+
+ if(fatInitDefault()){
+  sd=1;
+ }
+
+ while(1){
+  menu();
+
+  while(1){
+   swiWaitForVBlank();
+   scanKeys();
+   u16 k=keysDown();
+
+   if(k&KEY_A){jugar(NULL,0);break;}
+   if(k&KEY_B){jugar(NULL,1);break;}
+   if(k&KEY_X){jugar("Matematicas",1);break;}
+   if(k&KEY_Y){jugar("Espanol",1);break;}
+   if(k&KEY_L){jugar("Quimica",1);break;}
+   if(k&KEY_R){jugar("General",1);break;}
+   if(k&KEY_SELECT){chat();break;}
+
+   if(k&KEY_START){
+    printf("\x1b[2JHasta luego!\nGracias por usar DSi IA.");
+    while(1)swiWaitForVBlank();
+   }
+  }
+ }
+
+ return 0;
 }
