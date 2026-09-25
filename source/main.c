@@ -1033,3 +1033,7 @@ int main(void){
 
  return 0;
 }
+#include <dswifi9.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
