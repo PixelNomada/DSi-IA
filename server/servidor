@@ -1,1 +1,96 @@
+import http from "node:http";
+import OpenAI from "openai";
 
+const PORT = 8080;
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+const server = http.createServer(async (req, res) => {
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+  if (req.method === "GET" && req.url === "/") {
+    res.end(JSON.stringify({
+      ok: true,
+      service: "DSi IA",
+      status: "online"
+    }));
+    return;
+  }
+
+  if (req.method !== "POST" || req.url !== "/ask") {
+    res.statusCode = 404;
+
+    res.end(JSON.stringify({
+      ok: false,
+      error: "Ruta no encontrada"
+    }));
+
+    return;
+  }
+
+  let body = "";
+
+  req.on("data", chunk => {
+    body += chunk;
+
+    if (body.length > 4096) {
+      req.destroy();
+    }
+  });
+
+  req.on("end", async () => {
+
+    try {
+
+      const data = JSON.parse(body);
+      const question = String(data.question || "").trim();
+
+      if (!question) {
+        res.statusCode = 400;
+
+        res.end(JSON.stringify({
+          ok: false,
+          error: "Pregunta vacia"
+        }));
+
+        return;
+      }
+
+      const response = await client.responses.create({
+        model: process.env.OPENAI_MODEL,
+        input:
+          "Eres DSi IA, un asistente educativo para Nintendo DSi. " +
+          "Responde en español, de forma clara y relativamente corta " +
+          "para que pueda mostrarse en la pantalla de una Nintendo DSi.\n\n" +
+          "Pregunta del usuario:\n" +
+          question
+      });
+
+      const answer = response.output_text || "No pude generar una respuesta.";
+
+      res.end(JSON.stringify({
+        ok: true,
+        answer
+      }));
+
+    } catch (error) {
+
+      console.error(error);
+
+      res.statusCode = 500;
+
+      res.end(JSON.stringify({
+        ok: false,
+        error: "Error del servidor"
+      }));
+    }
+  });
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`DSi IA Server escuchando en el puerto ${PORT}`);
+});
