@@ -1,453 +1,274 @@
 #include <nds.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <math.h>
+#include <time.h>
 
-#define MAX_INPUT 48
-#define MAX_HISTORIAL 8
+PrintConsole top,bottom;
+Keyboard *kbd;
+
+void T(){consoleSelect(&top);}
+void B(){consoleSelect(&bottom);}
+void col(int c){consoleEnhancedColorHandler(c);}
 
 typedef struct{
- const char *pregunta,*respuesta,*explicacion,*categoria;
-}Pregunta;
+ const char*q,*r,*e,*c;
+} P;
 
-typedef struct{
- const char *clave,*respuesta;
-}Tema;
+P p[]={
+{"Cuanto es 7 + 8?","15","Siete mas ocho son quince.","Matematicas"},
+{"Cuanto es 9 x 6?","54","Nueve por seis son cincuenta y cuatro.","Matematicas"},
+{"Cuanto es 144 / 12?","12","144 dividido entre 12 da 12.","Matematicas"},
+{"Cuanto es 15 - 8?","7","Quince menos ocho son siete.","Matematicas"},
+{"Cuanto es 5 al cuadrado?","25","Cinco por cinco son veinticinco.","Matematicas"},
+{"Raiz cuadrada de 81?","9","La raiz de 81 es nueve.","Matematicas"},
+{"Cuanto es 2 elevado a 5?","32","2 por 2 por 2 por 2 por 2 son 32.","Matematicas"},
+{"Cuanto es 13 + 29?","42","Trece mas veintinueve son cuarenta y dos.","Matematicas"},
+{"Cuanto es 10 x 10?","100","Diez por diez son cien.","Matematicas"},
+{"Cuanto es 50 - 23?","27","Cincuenta menos veintitres son veintisiete.","Matematicas"},
+{"Cuanto es 3 al cubo?","27","Tres al cubo es veintisiete.","Matematicas"},
 
-Pregunta banco[]={
-{"2+2","4","2+2=4.","Matematicas"},
-{"5x6","30","5 por 6=30.","Matematicas"},
-{"10/2","5","10 entre 2=5.","Matematicas"},
-{"3^2","9","3 al cuadrado=9.","Matematicas"},
-{"Raiz de 25","5","5x5=25.","Matematicas"},
-{"15% de 100","15","15 por ciento de 100=15.","Matematicas"},
-{"Triangulo: suma de angulos","180","Todo triangulo suma 180 grados.","Matematicas"},
-{"Formula de Pitagoras","a2+b2=c2","Sirve para triangulos rectangulos.","Matematicas"},
-{"Perimetro de cuadrado lado 4","16","4+4+4+4=16.","Matematicas"},
-{"Area de cuadrado lado 5","25","5x5=25.","Matematicas"},
+{"Simbolo del oxigeno?","O","El oxigeno usa el simbolo O.","Quimica"},
+{"Simbolo del hidrogeno?","H","El hidrogeno usa H.","Quimica"},
+{"Simbolo del carbono?","C","El carbono usa C.","Quimica"},
+{"Que elemento es Fe?","Hierro","Fe procede de ferrum.","Quimica"},
+{"Que elemento es Na?","Sodio","Na corresponde al sodio.","Quimica"},
+{"Que elemento es Au?","Oro","Au procede de aurum.","Quimica"},
+{"Que elemento es Ag?","Plata","Ag procede de argentum.","Quimica"},
+{"Particula con carga negativa?","Electron","El electron tiene carga negativa.","Quimica"},
+{"Particula con carga positiva?","Proton","El proton tiene carga positiva.","Quimica"},
+{"Particula sin carga?","Neutron","El neutron no tiene carga.","Quimica"},
+{"Formula del agua?","H2O","Dos H y un O forman H2O.","Quimica"},
+{"Formula del dioxido de carbono?","CO2","Un carbono y dos oxigenos forman CO2.","Quimica"},
 
-{"Sustantivo","Nombre","Nombra personas, animales, cosas o lugares.","Espanol"},
-{"Verbo","Accion","Expresa accion, estado o proceso.","Espanol"},
-{"Adjetivo","Cualidad","Describe un sustantivo.","Espanol"},
-{"Sinonimo de feliz","Contento","Son palabras de significado parecido.","Espanol"},
-{"Antonimo de grande","Pequeno","Son palabras de significado contrario.","Espanol"},
-{"Que es una oracion","Enunciado","Expresa una idea completa.","Espanol"},
-{"Que es un texto","Conjunto de ideas","Comunica un mensaje.","Espanol"},
-{"Que es un parrafo","Grupo de oraciones","Desarrolla una idea.","Espanol"},
-
-{"Que es un atomo","Unidad de materia","Tiene protones, neutrones y electrones.","Quimica"},
-{"Que es una molecula","Union de atomos","Los atomos se unen quimicamente.","Quimica"},
-{"Que es el agua","H2O","Tiene dos H y un O.","Quimica"},
-{"Que es el oxigeno","Elemento","Su simbolo es O.","Quimica"},
-{"Que es el hidrogeno","Elemento","Su simbolo es H.","Quimica"},
-{"Que mide el pH","Acidez","7 es neutro.","Quimica"},
-{"pH menor que 7","Acido","Los acidos tienen pH menor que 7.","Quimica"},
-{"pH mayor que 7","Base","Las bases tienen pH mayor que 7.","Quimica"},
-{"Que es una reaccion","Cambio quimico","Se forman nuevas sustancias.","Quimica"},
-{"Que es un elemento","Sustancia pura","Tiene un tipo de atomo.","Quimica"},
-
-{"Que es la fuerza","Empuje o jalon","Puede cambiar el movimiento.","Fisica"},
-{"Que es velocidad","Distancia/tiempo","Indica que tan rapido se mueve algo.","Fisica"},
-{"Que es gravedad","Atraccion","La masa atrae a otra masa.","Fisica"},
-{"Que es energia","Capacidad de cambio","Puede producir trabajo o transformaciones.","Fisica"},
-{"Que es masa","Cantidad de materia","Se mide normalmente en kg.","Fisica"},
-{"Que es temperatura","Medida termica","Indica que tan caliente o frio esta algo.","Fisica"},
-
-{"Que es una celula","Unidad de vida","Forma la base de los seres vivos.","Biologia"},
-{"Que es el ADN","Material genetico","Contiene informacion hereditaria.","Biologia"},
-{"Que es un ecosistema","Seres vivos y ambiente","Ambos interactuan.","Biologia"},
-{"Que hacen las plantas","Fotosintesis","Usan luz para producir alimento.","Biologia"},
-{"Que es un mamifero","Animal con glandulas mamarias","La mayoria nace del vientre materno.","Biologia"},
-
-{"Capital de Mexico","Ciudad de Mexico","Es la capital del pais.","General"},
-{"Planeta rojo","Marte","Su superficie contiene mucho oxido de hierro.","General"},
-{"Satelite natural de la Tierra","Luna","Orbita nuestro planeta.","General"},
-{"Estrella del sistema solar","Sol","Es la estrella central.","General"},
-{"Continente de Mexico","America","Mexico esta en America del Norte.","Geografia"},
-{"Planeta mas grande","Jupiter","Es el mayor del sistema solar.","General"},
-{"Oceano mas grande","Pacifico","Es el mayor oceano de la Tierra.","Geografia"},
-{"Que estudia la historia","El pasado","Analiza hechos y procesos humanos.","Historia"},
-{"Que fue Roma","Civilizacion antigua","Domino gran parte de Europa y el Mediterraneo.","Historia"},
-{"Independencia de Mexico","1810","El movimiento inicio en 1810.","Historia"},
-
-{"Que es internet","Red mundial","Conecta dispositivos y redes.","Tecnologia"},
-{"Que es un programa","Software","Son instrucciones para una computadora.","Tecnologia"},
-{"Que es hardware","Parte fisica","Son los componentes de un dispositivo.","Tecnologia"},
-{"Que es software","Programas","Permite realizar tareas digitales.","Tecnologia"},
-{"Que es un algoritmo","Pasos ordenados","Sirve para resolver problemas.","Tecnologia"},
-
-{"hello","hola","Hello significa hola.","Ingles"},
-{"goodbye","adios","Goodbye significa adios.","Ingles"},
-{"computer","computadora","Computer significa computadora.","Ingles"},
-{"water","agua","Water significa agua.","Ingles"},
-{"book","libro","Book significa libro.","Ingles"}
+{"Que es un sustantivo?","Nombre","Nombra personas, animales, cosas o ideas.","Espanol"},
+{"Que es un verbo?","Accion","Expresa accion, estado o proceso.","Espanol"},
+{"Antonimo de grande?","Pequeno","Pequeno es contrario de grande.","Espanol"},
+{"Sinonimo de rapido?","Veloz","Rapido y veloz tienen significado parecido.","Espanol"},
+{"Signo que abre una pregunta?","¿","En espanol se usa ¿ al comenzar.","Espanol"},
+{"Signo que abre una exclamacion?","¡","Las exclamaciones empiezan con ¡.","Espanol"},
+{"Plural de lapiz?","Lapices","La z cambia por c.","Espanol"},
+{"Sujeto en 'Ana corre'?","Ana","Ana realiza la accion.","Espanol"},
+{"Que es un adjetivo?","Descripcion","Describe o califica al sustantivo.","Espanol"},
+{"Donde tiene fuerza una palabra aguda?","Ultima","La silaba tonica es la ultima.","Espanol"},
+{"Donde tiene fuerza una palabra llana?","Penultima","La silaba tonica es la penultima.","Espanol"},
+{"Donde tiene fuerza una esdrujula?","Antepenultima","La silaba tonica es la antepenultima.","Espanol"}
 };
 
-Tema temas[]={
-{"hola","Hola bro 😎 ¿Como estas?"},
-{"buenas","¡Buenas! ¿Que hacemos?"},
-{"hey","¡Hey! ¿Que tal?"},
-{"como estas","Todo bien 😎 ¿Y tu?"},
-{"quien eres","Soy DSi IA, tu asistente."},
-{"que haces","Aqui estoy, listo para ayudarte."},
-{"aburrido","Podemos hablar o aprender algo."},
-{"gracias","¡De nada bro! 😎"},
-{"adios","¡Nos vemos! 👋"},
-{"escuela","¿Que materia quieres estudiar?"},
-{"tarea","Dime la materia y te ayudo."},
-{"matematicas","Puedo ayudarte con numeros, algebra y geometria."},
-{"espanol","Podemos practicar gramatica y lectura."},
-{"quimica","Puedo explicar atomos, elementos y reacciones."},
-{"fisica","Podemos hablar de fuerza, energia y movimiento."},
-{"historia","Puedo explicar hechos y procesos historicos."},
-{"geografia","Podemos hablar de paises, mapas y planetas."},
-{"biologia","Podemos hablar de celulas, animales y ecosistemas."},
-{"tecnologia","Podemos hablar de computadoras, internet y programacion."},
-{"juegos","¿Que juego estas jugando?"},
-{"musica","¿Que tipo de musica te gusta?"},
-{"peliculas","¿Que pelicula te gusta?"},
-{"futbol","¿Cual es tu equipo favorito?"},
-{"comida","¿Cual es tu comida favorita?"},
-{"mexico","Mexico esta en America del Norte."},
-{"planetas","El sistema solar tiene ocho planetas."},
-{"sol","El Sol es la estrella de nuestro sistema."},
-{"luna","La Luna es el satelite natural de la Tierra."},
-{"tierra","La Tierra es nuestro planeta."},
-{"marte","Marte es conocido como el planeta rojo."},
-{"jupiter","Jupiter es el planeta mas grande."},
-{"espacio","El espacio contiene estrellas, planetas y galaxias."},
-{"universo","El universo contiene toda la materia y energia conocidas."},
-{"robot","Un robot es una maquina programable."},
-{"computadora","Una computadora procesa informacion mediante programas."},
-{"internet","Internet conecta millones de dispositivos."},
-{"programacion","Programar es crear instrucciones para una computadora."},
-{"codigo","El codigo contiene instrucciones de un programa."},
-{"html","HTML estructura el contenido de una pagina web."},
-{"css","CSS controla el aspecto visual de una pagina."},
-{"javascript","JavaScript permite agregar logica e interactividad web."},
-{"c","C es un lenguaje de programacion muy usado."},
-{"nintendo","Nintendo es una empresa conocida por sus videojuegos."},
-{"ps4","PS4 es una consola de videojuegos de Sony."},
-{"roblox","Roblox permite crear y jugar experiencias."},
-{"minecraft","Minecraft permite construir y explorar mundos."},
-{"sonic","Sonic es un personaje famoso de videojuegos."},
-{"mario","Mario es un personaje clasico de Nintendo."},
-{"dragon ball","Dragon Ball es una serie de manga y anime."},
-{"anime","Anime es animacion producida principalmente en Japon."},
-{"libros","Un libro puede enseñar, contar historias o informar."},
-{"leer","Leer ayuda a comprender informacion e historias."},
-{"ciencia","La ciencia estudia el mundo mediante observacion y pruebas."},
-{"experimento","Un experimento prueba una idea bajo ciertas condiciones."},
-{"atomo","Un atomo es una unidad basica de la materia."},
-{"molecula","Una molecula esta formada por atomos unidos."},
-{"agua","El agua tiene formula H2O."},
-{"oxigeno","El oxigeno tiene simbolo O."},
-{"hidrogeno","El hidrogeno tiene simbolo H."},
-{"ph","El pH indica acidez o basicidad."},
-{"acido","Una sustancia acida tiene pH menor que 7."},
-{"base","Una base suele tener pH mayor que 7."},
-{"fuerza","Una fuerza puede cambiar el movimiento."},
-{"gravedad","La gravedad atrae masas entre si."},
-{"energia","La energia puede producir cambios."},
-{"velocidad","La velocidad relaciona distancia y tiempo."},
-{"masa","La masa mide cantidad de materia."},
-{"celula","La celula es la unidad basica de la vida."},
-{"adn","El ADN contiene informacion genetica."},
-{"animal","Los animales son organismos vivos."},
-{"planta","Las plantas producen alimento mediante fotosintesis."},
-{"ecosistema","Un ecosistema incluye seres vivos y ambiente."},
-{"historia","La historia estudia procesos y hechos del pasado."},
-{"geografia","La geografia estudia lugares y relaciones espaciales."},
-{"mexico","Mexico tiene una gran diversidad geografica y cultural."},
-{"independencia","La Independencia de Mexico comenzo en 1810."},
-{"roma","Roma fue una importante civilizacion antigua."},
-{"francia","Francia esta en Europa occidental."},
-{"segunda guerra","La Segunda Guerra Mundial ocurrio entre 1939 y 1945."},
-{"tierra plana","La Tierra tiene forma aproximadamente esferica."},
-{"sol sistema","El Sol es el centro del sistema solar."},
-{"galaxia","Una galaxia contiene estrellas, gas, polvo y otros objetos."},
-{"estrella","Una estrella produce energia y luz."},
-{"agujero negro","Es una region con gravedad extremadamente intensa."},
-{"tiempo","El tiempo permite ordenar la duracion de eventos."},
-{"espacio tiempo","En fisica, espacio y tiempo forman parte del espacio-tiempo."},
-{"matematicas","Las matematicas estudian numeros, formas y relaciones."},
-{"fraccion","Una fraccion representa partes de un todo."},
-{"porcentaje","Un porcentaje expresa una cantidad sobre 100."},
-{"ecuacion","Una ecuacion contiene una igualdad y valores desconocidos."},
-{"pitagoras","En un triangulo rectangulo: a2+b2=c2."},
-{"area","El area mide una superficie."},
-{"perimetro","El perimetro mide el borde de una figura."},
-{"pi","Pi es aproximadamente 3.14159."},
-{"numero primo","Un primo tiene exactamente dos divisores positivos."},
-{"algebra","El algebra usa letras y simbolos para representar cantidades."},
-{"ingles","Puedo ayudarte con palabras y frases en ingles."},
-{"hello","Hello significa hola."},
-{"goodbye","Goodbye significa adios."},
-{"computer","Computer significa computadora."},
-{"water","Water significa agua."},
-{"book","Book significa libro."},
-{"porque","Puedo explicar el tema paso a paso."},
-{"por que","Dime el tema y te explico el motivo."},
-{"explica","Claro. Dime que quieres que explique."},
-{"otro dato","Dato: un pulpo tiene tres corazones."},
-{"dato","Dato: la luz del Sol tarda unos 8 minutos en llegar."},
-{"sueño","Los sueños pueden incluir imagenes, sonidos y emociones."},
-{"miedo","El miedo es una respuesta ante algo percibido como amenaza."},
-{"feliz","¡Que bueno! 😎"},
-{"triste","Aqui estoy bro. Podemos hablar."},
-{"no se","No pasa nada. Podemos descubrirlo juntos."},
-{"ayuda","Claro. Preguntame lo que quieras."}
-};
+#define NP (sizeof(p)/sizeof(p[0]))
 
-int total_preguntas=sizeof(banco)/sizeof(banco[0]);
-int total_temas=sizeof(temas)/sizeof(temas[0]);
-int puntuacion=0,aciertos=0,preguntas_hechas=0;
-Keyboard *kbd=NULL;
-PrintConsole consolaTop,consolaBottom;
-char historial[MAX_HISTORIAL][64];
-int num_historial=0;
-char ultimo_tema[64]="";
+char hist[7][70];
+int nh=0;
 
-void seleccionar_top(void){consoleSelect(&consolaTop);}
-void seleccionar_bottom(void){consoleSelect(&consolaBottom);}
-
-void a_minusculas(char *s){
- int i;
- for(i=0;s[i];i++)s[i]=(char)tolower((unsigned char)s[i]);
+void add(const char*s){
+ if(nh<7){strncpy(hist[nh],s,69);hist[nh][69]=0;nh++;}
+ else{int i;for(i=0;i<6;i++)strcpy(hist[i],hist[i+1]);strcpy(hist[6],s);}
 }
 
-int contiene(const char *a,const char *b){
- char x[MAX_INPUT];
- strncpy(x,a,MAX_INPUT-1);x[MAX_INPUT-1]=0;
- a_minusculas(x);
- return strstr(x,b)!=NULL;
+void historia(){
+ int i;T();consoleClear();
+ col(6);printf("================================\n  AULA DE GERMAN\n================================\n");col(5);
+ for(i=0;i<nh;i++)printf("%s\n",hist[i]);
 }
 
-void agregar_historial(const char *quien,const char *msg){
- if(num_historial<MAX_HISTORIAL){
-  snprintf(historial[num_historial],64,"%s: %.55s",quien,msg);
-  num_historial++;
- }else{
-  int i;
-  for(i=1;i<MAX_HISTORIAL;i++)strcpy(historial[i-1],historial[i]);
-  snprintf(historial[MAX_HISTORIAL-1],64,"%s: %.55s",quien,msg);
- }
-}
-
-void mostrar_historial(void){
- int i;
- seleccionar_top();
- printf("\x1b[2J");
- printf("====== DSi IA ======\n\n");
- for(i=0;i<num_historial;i++)printf("%s\n\n",historial[i]);
-}
-
-void iniciar_teclado(void){
- kbd=keyboardInit(NULL,3,BgType_Text4bpp,BgSize_T_256x512,20,0,false,true);
- keyboardShow();
- seleccionar_bottom();
-}
-
-void ocultar_teclado(void){
- keyboardHide();
-}
-
-int leer_texto(char *out,int max){
- int pos=0;
- out[0]=0;
- seleccionar_bottom();
- printf("\x1b[2J");
- printf("Escribe tu mensaje:\n\n");
- printf("Tu: ");
+int leer(char*s,int n){
+ int x=0;keyboardShow();s[0]=0;
  while(1){
-  swiWaitForVBlank();
-  scanKeys();
-  int key=keyboardUpdate();
-  if(key>0){
-   if(key==DVK_ENTER||key=='\n'){
-    out[pos]=0;
-    return 1;
-   }
-   if((key==DVK_BACKSPACE||key==8)&&pos>0){
-    pos--;out[pos]=0;
-   }else if(key>=32&&key<127&&pos<max-1){
-    out[pos++]=(char)key;
-    out[pos]=0;
-   }
-   seleccionar_bottom();
-   printf("\x1b[2J");
-   printf("Escribe tu mensaje:\n\nTu: %s",out);
-  }
+  swiWaitForVBlank();scanKeys();int k=keyboardUpdate();
+  if(k==DVK_ENTER||k=='\n'){s[x]=0;return 1;}
+  if((k==DVK_BACKSPACE||k==8)&&x){s[--x]=0;}
+  else if(k>=32&&k<127&&x<n-1)s[x++]=k,s[x]=0;
   if(keysDown()&KEY_B)return 0;
  }
 }
 
-int calcular_expresion(const char *s,int *ok){
- int a,b;char op;
- *ok=0;
- if(sscanf(s,"%d %c %d",&a,&op,&b)==3){
-  *ok=1;
-  if(op=='+')return a+b;
-  if(op=='-')return a-b;
-  if(op=='*'||op=='x')return a*b;
-  if(op=='/'&&b)return a/b;
-  *ok=0;
- }
- return 0;
+void germ_responde(char*s){
+ char*r;
+ if(strstr(s,"hola")||strstr(s,"Hola"))
+  r="¡Buenas! Soy German. Venga, dime que estudiamos hoy.";
+ else if(strstr(s,"mate")||strstr(s,"Mate"))
+  r="Vale, vamos con matematicas. Ojo con los signos y sin miedo.";
+ else if(strstr(s,"quim")||strstr(s,"Quim"))
+  r="Perfecto. Abrimos quimica: atomos, elementos y formulas.";
+ else if(strstr(s,"español")||strstr(s,"espanol")||strstr(s,"lengua"))
+  r="Muy bien. Vamos con lengua, gramatica y ortografia.";
+ else if(strstr(s,"gracias")||strstr(s,"Gracias"))
+  r="De nada, hombre. Para eso estoy. ¡Venga, seguimos!";
+ else if(strstr(s,"quien")||strstr(s,"Quien"))
+  r="Soy German, tu profesor virtual. Un profesor español, claro.";
+ else if(strstr(s,"2+2")||strstr(s,"2 + 2"))
+  r="Eso es facil: 2 + 2 = 4. No me pongas a prueba tan pronto.";
+ else if(strstr(s,"pi")||strstr(s,"PI"))
+  r="Pi vale aproximadamente 3,141592. Aparece mucho en geometria.";
+ else
+  r="Hmm... buena pregunta. No pasa nada: podemos estudiarla juntos.";
+ add("German:");
+ add(r);
 }
 
-void responder_charla(const char *msg){
- char m[MAX_INPUT],resp[64];
- int i,ok,r;
- strncpy(m,msg,MAX_INPUT-1);m[MAX_INPUT-1]=0;
- a_minusculas(m);
-
- if(contiene(m,"cuanto es")||isdigit((unsigned char)m[0])){
-  r=calcular_expresion(m,&ok);
-  if(ok){
-   sprintf(resp,"Resultado: %d",r);
-   agregar_historial("DSi IA",resp);
-   mostrar_historial();
-   return;
-  }
- }
-
- for(i=0;i<total_temas;i++){
-  if(strstr(m,temas[i].clave)){
-   strncpy(ultimo_tema,temas[i].clave,63);
-   ultimo_tema[63]=0;
-   agregar_historial("DSi IA",temas[i].respuesta);
-   mostrar_historial();
-   return;
-  }
- }
-
- if(contiene(m,"por que")||contiene(m,"porque")){
-  if(ultimo_tema[0]){
-   sprintf(resp,"Sobre %s: puedo explicarlo mas si quieres.",ultimo_tema);
-   agregar_historial("DSi IA",resp);
-  }else agregar_historial("DSi IA","Dime el tema y te explico por que.");
- }else if(contiene(m,"explica")||contiene(m,"mas")){
-  agregar_historial("DSi IA","Claro. Preguntame algo mas concreto.");
- }else if(contiene(m,"otro dato")){
-  agregar_historial("DSi IA","Dato: los pulpos tienen tres corazones.");
- }else{
-  agregar_historial("DSi IA","Interesante 😎. Cuéntame mas.");
- }
- mostrar_historial();
-}
-
-int es_correcta(const char *respuesta,const char *correcta){
- char a[64],b[64];
- strncpy(a,respuesta,63);a[63]=0;
- strncpy(b,correcta,63);b[63]=0;
- a_minusculas(a);a_minusculas(b);
- return strcmp(a,b)==0||strstr(a,b)!=NULL;
-}
-
-void jugar(const char *categoria,int leccion){
- int idx[100],n=0,i,j,t,ok;
- char respuesta[MAX_INPUT];
- for(i=0;i<total_preguntas;i++)
-  if(!categoria||strcmp(banco[i].categoria,categoria)==0)idx[n++]=i;
- for(i=n-1;i>0;i--){
-  j=rand()%(i+1);t=idx[i];idx[i]=idx[j];idx[j]=t;
- }
- if(n==0)return;
- iniciar_teclado();
- puntuacion=0;aciertos=0;preguntas_hechas=0;
- for(i=0;i<n&&i<7;i++){
-  seleccionar_top();
-  printf("\x1b[2J");
-  printf("Pregunta %d/7\n\n%s\n\n",i+1,banco[idx[i]].pregunta);
-  if(leer_texto(respuesta,MAX_INPUT)==0)break;
-  seleccionar_top();
-  printf("\x1b[2J");
-  preguntas_hechas++;
-  if(es_correcta(respuesta,banco[idx[i]].respuesta)){
-   aciertos++;puntuacion+=10;
-   printf("¡Correcto!\n\n");
-  }else printf("Incorrecto.\nRespuesta: %s\n\n",banco[idx[i]].respuesta);
-  if(leccion)printf("%s\n",banco[idx[i]].explicacion);
-  printf("\nPulsa A...");
-  while(!(keysDown()&KEY_A)){swiWaitForVBlank();scanKeys();}
- }
- ocultar_teclado();
- seleccionar_top();
- printf("\x1b[2J");
- printf("FIN\n\nAciertos: %d/%d\nPuntos: %d\n",aciertos,preguntas_hechas,puntuacion);
- printf("\nPulsa A...");
- while(!(keysDown()&KEY_A)){swiWaitForVBlank();scanKeys();}
-}
-
-void modo_charla(void){
- char msg[MAX_INPUT],tmp[MAX_INPUT];
- num_historial=0;
- iniciar_teclado();
- agregar_historial("DSi IA","Hola bro 😎 Escribe algo.");
+void charla(){
+ char s[80];nh=0;
+ add("German:");
+ add("¡Buenas! Soy el profesor German.");
+ add("Venga, dime que quieres estudiar.");
  while(1){
-  mostrar_historial();
-  seleccionar_bottom();
-  printf("\x1b[2J");
-  printf("Escribe tu mensaje:\n\n");
-  if(!leer_texto(msg,MAX_INPUT))break;
-  if(msg[0]==0)continue;
-  strncpy(tmp,msg,MAX_INPUT-1);tmp[MAX_INPUT-1]=0;
-  a_minusculas(tmp);
-  if(strstr(tmp,"salir")||strstr(tmp,"menu"))break;
-  agregar_historial("Tu",msg);
-  responder_charla(msg);
+  historia();B();consoleClear();
+  col(3);printf("HABLA CON GERMAN\n\n");col(5);
+  printf("Escribe aqui:\n> ");
+  if(!leer(s,80))return;
+  if(!s[0])continue;
+  if(!strcasecmp(s,"salir"))return;
+  add("Tu:");add(s);germ_responde(s);
  }
- ocultar_teclado();
- seleccionar_top();
 }
 
-void menu_principal(void){
- seleccionar_top();
- printf("\x1b[2J");
- printf("====== DSi IA ======\n\n");
- printf("A: Quiz\n");
- printf("B: Leccion\n");
- printf("X: Matematicas\n");
- printf("Y: Espanol\n");
- printf("L: Quimica\n");
- printf("R: General\n");
- printf("SELECT: Chat\n");
- printf("START: Salir\n");
+void examen(char*cat){
+ int a[50],n=0,i,j,sc=0,lim;char s[60];
+ for(i=0;i<NP;i++)
+  if(!cat||!strcmp(p[i].c,cat))a[n++]=i;
+ for(i=n-1;i>0;i--){j=rand()%(i+1);int z=a[i];a[i]=a[j];a[j]=z;}
+ lim=n<7?n:7;
+ for(i=0;i<lim;i++){
+  T();consoleClear();col(6);
+  printf("================================\n PROFESOR GERMAN\n================================\n\n");
+  col(5);printf("%s\n\n%s\n",p[a[i]].c,p[a[i]].q);
+  B();consoleClear();printf("Pregunta %d/%d\n\nRespuesta:\n> ",i+1,lim);
+  if(!leer(s,60))return;
+  T();
+  if(!strcasecmp(s,p[a[i]].r)){sc++;col(2);printf("\n\n¡MUY BIEN!\n");}
+  else{col(1);printf("\n\nCasi, hombre.\n");col(5);printf("Respuesta: %s\n",p[a[i]].r);}
+  col(5);printf("%s\n",p[a[i]].e);
+  B();printf("\nPulsa A para continuar.");
+  while(1){swiWaitForVBlank();scanKeys();if(keysDown()&KEY_A)break;if(keysDown()&KEY_B)return;}
+ }
+ T();consoleClear();col(6);printf("========== RESULTADO ==========\n\n");col(5);
+ printf("%d de %d correctas.\n\n",sc,lim);
+ if(sc==lim){col(2);printf("¡Perfecto! Menudo nivel.\n");}
+ else if(sc>=lim/2){col(3);printf("Muy bien. Sigue practicando.\n");}
+ else{col(1);printf("No pasa nada. Repasamos.\n");}
+ col(5);B();printf("\nPulsa A.");
+ while(1){swiWaitForVBlank();scanKeys();if(keysDown()&KEY_A)break;}
 }
 
-int main(void){
- videoSetMode(MODE_0_2D);
- videoSetModeSub(MODE_0_2D);
- vramSetBankA(VRAM_A_MAIN_BG);
- vramSetBankC(VRAM_C_SUB_BG);
+double calc(char*s){
+ double a,b;
+ char o;
+ if(sscanf(s,"%lf %c %lf",&a,&o,&b)==3){
+  if(o=='+')return a+b;if(o=='-')return a-b;
+  if(o=='*'||o=='x'||o=='X')return a*b;
+  if(o=='/'&&b!=0)return a/b;
+  if(o=='^')return pow(a,b);
+ }
+ if(sscanf(s,"sqrt %lf",&a)==1)return sqrt(a);
+ if(sscanf(s,"sin %lf",&a)==1)return sin(a);
+ if(sscanf(s,"cos %lf",&a)==1)return cos(a);
+ if(sscanf(s,"tan %lf",&a)==1)return tan(a);
+ if(sscanf(s,"log %lf",&a)==1)return log10(a);
+ if(sscanf(s,"ln %lf",&a)==1)return log(a);
+ return sscanf(s,"%lf",&a)==1?a:0;
+}
 
- consoleInit(&consolaTop,0,BgType_Text4bpp,BgSize_T_256x256,22,3,true,true);
- consoleInit(&consolaBottom,0,BgType_Text4bpp,BgSize_T_256x256,22,3,false,true);
-
- srand(2026);
- seleccionar_top();
-
+void calculadora(){
+ char s[70];double r;
  while(1){
-  menu_principal();
+  T();consoleClear();col(6);
+  printf("================================\n CALCULADORA CIENTIFICA\n================================\n\n");
+  col(5);printf("+ - x / ^\n");printf("sqrt sin cos tan\nlog ln pi x^2\n\n");
+  printf("Ejemplo: 12 + 8\n> ");
+  if(!leer(s,70))return;
+  if(!s[0])continue;
+  r=calc(s);printf("\n");
+  col(2);printf("RESULTADO: %.6f\n",r);col(5);
+  B();printf("\nA = otra cuenta\nB = volver");
+  while(1){swiWaitForVBlank();scanKeys();if(keysDown()&KEY_A)break;if(keysDown()&KEY_B)return;}
+ }
+}
+
+void reloj(){
+ while(1){
+  time_t t=time(NULL);struct tm*d=localtime(&t);
+  T();consoleClear();col(6);
+  printf("================================\n          RELOJ\n================================\n\n");col(5);
+  if(d)printf("%02d:%02d:%02d\n\n%02d/%02d/%04d\n",d->tm_hour,d->tm_min,d->tm_sec,d->tm_mday,d->tm_mon+1,d->tm_year+1900);
+  printf("\nPulsa B para volver.");
+  B();consoleClear();printf("RELOJ DE GERMAN\n\n");printf("Hora y fecha del sistema.");
+  scanKeys();if(keysDown()&KEY_B)return;
+  swiWaitForVBlank();
+ }
+}
+
+void aula(){
+ while(1){
+  T();consoleClear();col(6);
+  printf("================================\n          AULA 3-B\n================================\n\n");
+  col(5);
+  printf("       +----------------+\n");
+  printf("       |    PIZARRON     |\n");
+  printf("       | x + y = 20      |\n");
+  printf("       | H2O = AGUA      |\n");
+  printf("       +----------------+\n\n");
+  printf("          .-''''-.\n");
+  printf("         /  o  o  \\\n");
+  printf("        |    ^     |\n");
+  printf("        |  \\___/   |\n");
+  printf("         \\_________/\n");
+  printf("          PROF. GERMAN\n\n");
+  col(3);printf("\"Venga, vamos al lio.\"\n");col(5);
+  B();consoleClear();printf("A Todas\nX Matematicas\nY Espanol\nL Quimica\nSELECT Hablar\nB Volver");
   while(1){
-   swiWaitForVBlank();
-   scanKeys();
-   u16 k=keysDown();
+   swiWaitForVBlank();scanKeys();uint32_t k=keysDown();
+   if(k&KEY_A){examen(NULL);break;}
+   if(k&KEY_X){examen("Matematicas");break;}
+   if(k&KEY_Y){examen("Espanol");break;}
+   if(k&KEY_L){examen("Quimica");break;}
+   if(k&KEY_SELECT){charla();break;}
+   if(k&KEY_B)return;
+  }
+ }
+}
 
-   if(k&KEY_A){jugar(NULL,0);break;}
-   if(k&KEY_B){jugar(NULL,1);break;}
-   if(k&KEY_X){jugar("Matematicas",1);break;}
-   if(k&KEY_Y){jugar("Espanol",1);break;}
-   if(k&KEY_L){jugar("Quimica",1);break;}
-   if(k&KEY_R){jugar("General",1);break;}
-   if(k&KEY_SELECT){modo_charla();break;}
-   if(k&KEY_START){
-    printf("\x1b[2J\nHasta luego!\nGracias por usar DSi IA.\n");
-    while(1)swiWaitForVBlank();
+void menu(){
+ while(1){
+  T();consoleClear();col(6);
+  printf("================================\n      PROFESOR GERMAN\n================================\n\n");
+  col(5);printf("       ¡VENGA, AL LIO!\n\n");
+  printf("       [ AULA 3-B ]\n\n");
+  B();consoleClear();col(3);
+  printf("========= MENU =========\n\n");col(5);
+  printf("TOCA LA PANTALLA\n\n");
+  printf("A  AULA DE GERMAN\n");
+  printf("X  CALCULADORA\n");
+  printf("Y  RELOJ\n");
+  printf("START  SALIR\n");
+  while(1){
+   swiWaitForVBlank();scanKeys();uint32_t k=keysDown();
+   if(k&KEY_A){aula();break;}
+   if(k&KEY_X){calculadora();break;}
+   if(k&KEY_Y){reloj();break;}
+   if(k&KEY_START)return;
+   if(k&KEY_TOUCH){
+    touchPosition t;touchRead(&t);
+    if(t.py<70){reloj();break;}
+    if(t.py<140){calculadora();break;}
+    aula();break;
    }
   }
  }
+}
+
+int main(int argc,char**argv){
+ videoSetMode(MODE_0_2D);videoSetModeSub(MODE_0_2D);
+ vramSetBankA(VRAM_A_MAIN_BG);vramSetBankC(VRAM_C_SUB_BG);
+
+ consoleInit(&top,0,BgType_Text4bpp,BgSize_T_256x256,22,3,true,true);
+ consoleInit(&bottom,0,BgType_Text4bpp,BgSize_T_256x256,22,3,false,true);
+
+ kbd=keyboardInit(NULL,3,BgType_Text4bpp,BgSize_T_256x512,20,0,false,true);
+ keyboardShow();
+ srand((unsigned)time(NULL));
+ menu();
+ keyboardHide();
  return 0;
 }
