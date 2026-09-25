@@ -984,9 +984,12 @@ int main(void){
    u16 k=keysDown();
 
    if(k&KEY_A){
-    play(NULL,0);
+    calculator();
     break;
    }
+ 
+    
+    
 
    if(k&KEY_B){
     play(NULL,1);
@@ -1019,9 +1022,12 @@ int main(void){
    }
 
    if(k&KEY_START){
-    calculator();
+    play(NULL,0);
     break;
    }
+    
+   
+   
   }
  }
 
