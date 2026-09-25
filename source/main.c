@@ -11,11 +11,9 @@ Keyboard *kbd;
 
 void T(){consoleSelect(&top);}
 void B(){consoleSelect(&bottom);}
-void col(int c){consoleEnhancedColorHandler(c);}
+void col(int c){}
 
-typedef struct{
- const char*q,*r,*e,*c;
-} P;
+typedef struct{const char*q,*r,*e,*c;} P;
 
 P p[]={
 {"Cuanto es 7 + 8?","15","Siete mas ocho son quince.","Matematicas"},
@@ -63,29 +61,57 @@ char hist[7][70];
 int nh=0;
 
 void add(const char*s){
- if(nh<7){strncpy(hist[nh],s,69);hist[nh][69]=0;nh++;}
- else{int i;for(i=0;i<6;i++)strcpy(hist[i],hist[i+1]);strcpy(hist[6],s);}
+ if(nh<7){
+  strncpy(hist[nh],s,69);
+  hist[nh][69]=0;
+  nh++;
+ }else{
+  int i;
+  for(i=0;i<6;i++)strcpy(hist[i],hist[i+1]);
+  strcpy(hist[6],s);
+ }
 }
 
 void historia(){
- int i;T();consoleClear();
- col(6);printf("================================\n  AULA DE GERMAN\n================================\n");col(5);
+ int i;
+ T();
+ consoleClear();
+ printf("================================\n");
+ printf("       AULA DE GERMAN\n");
+ printf("================================\n");
  for(i=0;i<nh;i++)printf("%s\n",hist[i]);
 }
 
 int leer(char*s,int n){
- int x=0;keyboardShow();s[0]=0;
+ int x=0;
+ keyboardShow();
+ s[0]=0;
+
  while(1){
-  swiWaitForVBlank();scanKeys();int k=keyboardUpdate();
-  if(k==DVK_ENTER||k=='\n'){s[x]=0;return 1;}
-  if((k==DVK_BACKSPACE||k==8)&&x){s[--x]=0;}
-  else if(k>=32&&k<127&&x<n-1)s[x++]=k,s[x]=0;
+  swiWaitForVBlank();
+  scanKeys();
+  int k=keyboardUpdate();
+
+  if(k==DVK_ENTER||k=='\n'){
+   s[x]=0;
+   return 1;
+  }
+
+  if((k==DVK_BACKSPACE||k==8)&&x){
+   x--;
+   s[x]=0;
+  }else if(k>=32&&k<127&&x<n-1){
+   s[x++]=k;
+   s[x]=0;
+  }
+
   if(keysDown()&KEY_B)return 0;
  }
 }
 
 void germ_responde(char*s){
  char*r;
+
  if(strstr(s,"hola")||strstr(s,"Hola"))
   r="¡Buenas! Soy German. Venga, dime que estudiamos hoy.";
  else if(strstr(s,"mate")||strstr(s,"Mate"))
@@ -104,126 +130,274 @@ void germ_responde(char*s){
   r="Pi vale aproximadamente 3,141592. Aparece mucho en geometria.";
  else
   r="Hmm... buena pregunta. No pasa nada: podemos estudiarla juntos.";
+
  add("German:");
  add(r);
 }
 
 void charla(){
- char s[80];nh=0;
+ char s[80];
+ nh=0;
+
  add("German:");
  add("¡Buenas! Soy el profesor German.");
  add("Venga, dime que quieres estudiar.");
+
  while(1){
-  historia();B();consoleClear();
-  col(3);printf("HABLA CON GERMAN\n\n");col(5);
+  historia();
+  B();
+  consoleClear();
+  printf("HABLA CON GERMAN\n\n");
   printf("Escribe aqui:\n> ");
+
   if(!leer(s,80))return;
   if(!s[0])continue;
   if(!strcasecmp(s,"salir"))return;
-  add("Tu:");add(s);germ_responde(s);
+
+  add("Tu:");
+  add(s);
+  germ_responde(s);
  }
 }
 
 void examen(char*cat){
- int a[50],n=0,i,j,sc=0,lim;char s[60];
- for(i=0;i<NP;i++)
-  if(!cat||!strcmp(p[i].c,cat))a[n++]=i;
- for(i=n-1;i>0;i--){j=rand()%(i+1);int z=a[i];a[i]=a[j];a[j]=z;}
- lim=n<7?n:7;
- for(i=0;i<lim;i++){
-  T();consoleClear();col(6);
-  printf("================================\n PROFESOR GERMAN\n================================\n\n");
-  col(5);printf("%s\n\n%s\n",p[a[i]].c,p[a[i]].q);
-  B();consoleClear();printf("Pregunta %d/%d\n\nRespuesta:\n> ",i+1,lim);
-  if(!leer(s,60))return;
-  T();
-  if(!strcasecmp(s,p[a[i]].r)){sc++;col(2);printf("\n\n¡MUY BIEN!\n");}
-  else{col(1);printf("\n\nCasi, hombre.\n");col(5);printf("Respuesta: %s\n",p[a[i]].r);}
-  col(5);printf("%s\n",p[a[i]].e);
-  B();printf("\nPulsa A para continuar.");
-  while(1){swiWaitForVBlank();scanKeys();if(keysDown()&KEY_A)break;if(keysDown()&KEY_B)return;}
+ int a[50],n=0,i,j,sc=0,lim;
+ char s[60];
+
+ for(i=0;i<NP;i++){
+  if(!cat||!strcmp(p[i].c,cat))
+   a[n++]=i;
  }
- T();consoleClear();col(6);printf("========== RESULTADO ==========\n\n");col(5);
+
+ for(i=n-1;i>0;i--){
+  j=rand()%(i+1);
+  int z=a[i];
+  a[i]=a[j];
+  a[j]=z;
+ }
+
+ lim=n<7?n:7;
+
+ for(i=0;i<lim;i++){
+  T();
+  consoleClear();
+
+  printf("================================\n");
+  printf("       PROFESOR GERMAN\n");
+  printf("================================\n\n");
+  printf("%s\n\n%s\n",p[a[i]].c,p[a[i]].q);
+
+  B();
+  consoleClear();
+  printf("Pregunta %d/%d\n\nRespuesta:\n> ",i+1,lim);
+
+  if(!leer(s,60))return;
+
+  T();
+
+  if(!strcasecmp(s,p[a[i]].r)){
+   sc++;
+   printf("\n\n¡MUY BIEN!\n");
+  }else{
+   printf("\n\nCasi, hombre.\n");
+   printf("Respuesta: %s\n",p[a[i]].r);
+  }
+
+  printf("%s\n",p[a[i]].e);
+
+  B();
+  printf("\nPulsa A para continuar.");
+
+  while(1){
+   swiWaitForVBlank();
+   scanKeys();
+
+   if(keysDown()&KEY_A)break;
+   if(keysDown()&KEY_B)return;
+  }
+ }
+
+ T();
+ consoleClear();
+ printf("========== RESULTADO ==========\n\n");
  printf("%d de %d correctas.\n\n",sc,lim);
- if(sc==lim){col(2);printf("¡Perfecto! Menudo nivel.\n");}
- else if(sc>=lim/2){col(3);printf("Muy bien. Sigue practicando.\n");}
- else{col(1);printf("No pasa nada. Repasamos.\n");}
- col(5);B();printf("\nPulsa A.");
- while(1){swiWaitForVBlank();scanKeys();if(keysDown()&KEY_A)break;}
+
+ if(sc==lim)
+  printf("¡Perfecto! Menudo nivel.\n");
+ else if(sc>=lim/2)
+  printf("Muy bien. Sigue practicando.\n");
+ else
+  printf("No pasa nada. Repasamos.\n");
+
+ B();
+ printf("\nPulsa A.");
+
+ while(1){
+  swiWaitForVBlank();
+  scanKeys();
+  if(keysDown()&KEY_A)break;
+ }
 }
 
 double calc(char*s){
  double a,b;
  char o;
+
  if(sscanf(s,"%lf %c %lf",&a,&o,&b)==3){
-  if(o=='+')return a+b;if(o=='-')return a-b;
+  if(o=='+')return a+b;
+  if(o=='-')return a-b;
   if(o=='*'||o=='x'||o=='X')return a*b;
   if(o=='/'&&b!=0)return a/b;
   if(o=='^')return pow(a,b);
  }
+
  if(sscanf(s,"sqrt %lf",&a)==1)return sqrt(a);
  if(sscanf(s,"sin %lf",&a)==1)return sin(a);
  if(sscanf(s,"cos %lf",&a)==1)return cos(a);
  if(sscanf(s,"tan %lf",&a)==1)return tan(a);
  if(sscanf(s,"log %lf",&a)==1)return log10(a);
  if(sscanf(s,"ln %lf",&a)==1)return log(a);
+
  return sscanf(s,"%lf",&a)==1?a:0;
 }
 
 void calculadora(){
- char s[70];double r;
+ char s[70];
+ double r;
+
  while(1){
-  T();consoleClear();col(6);
-  printf("================================\n CALCULADORA CIENTIFICA\n================================\n\n");
-  col(5);printf("+ - x / ^\n");printf("sqrt sin cos tan\nlog ln pi x^2\n\n");
+  T();
+  consoleClear();
+
+  printf("================================\n");
+  printf("     CALCULADORA CIENTIFICA\n");
+  printf("================================\n\n");
+  printf("+ - x / ^\n");
+  printf("sqrt sin cos tan\n");
+  printf("log ln pi x^2\n\n");
   printf("Ejemplo: 12 + 8\n> ");
+
   if(!leer(s,70))return;
   if(!s[0])continue;
-  r=calc(s);printf("\n");
-  col(2);printf("RESULTADO: %.6f\n",r);col(5);
-  B();printf("\nA = otra cuenta\nB = volver");
-  while(1){swiWaitForVBlank();scanKeys();if(keysDown()&KEY_A)break;if(keysDown()&KEY_B)return;}
+
+  r=calc(s);
+
+  printf("\nRESULTADO: %.6f\n",r);
+
+  B();
+  printf("\nA = otra cuenta\n");
+  printf("B = volver");
+
+  while(1){
+   swiWaitForVBlank();
+   scanKeys();
+
+   if(keysDown()&KEY_A)break;
+   if(keysDown()&KEY_B)return;
+  }
  }
 }
 
 void reloj(){
  while(1){
-  time_t t=time(NULL);struct tm*d=localtime(&t);
-  T();consoleClear();col(6);
-  printf("================================\n          RELOJ\n================================\n\n");col(5);
-  if(d)printf("%02d:%02d:%02d\n\n%02d/%02d/%04d\n",d->tm_hour,d->tm_min,d->tm_sec,d->tm_mday,d->tm_mon+1,d->tm_year+1900);
+  time_t t=time(NULL);
+  struct tm*d=localtime(&t);
+
+  T();
+  consoleClear();
+
+  printf("================================\n");
+  printf("             RELOJ\n");
+  printf("================================\n\n");
+
+  if(d){
+   printf("%02d:%02d:%02d\n\n",
+    d->tm_hour,d->tm_min,d->tm_sec);
+
+   printf("%02d/%02d/%04d\n",
+    d->tm_mday,d->tm_mon+1,d->tm_year+1900);
+  }
+
   printf("\nPulsa B para volver.");
-  B();consoleClear();printf("RELOJ DE GERMAN\n\n");printf("Hora y fecha del sistema.");
-  scanKeys();if(keysDown()&KEY_B)return;
+
+  B();
+  consoleClear();
+  printf("RELOJ DE GERMAN\n\n");
+  printf("Hora y fecha del sistema.");
+
+  scanKeys();
+
+  if(keysDown()&KEY_B)return;
+
   swiWaitForVBlank();
  }
 }
 
 void aula(){
  while(1){
-  T();consoleClear();col(6);
-  printf("================================\n          AULA 3-B\n================================\n\n");
-  col(5);
+  T();
+  consoleClear();
+
+  printf("================================\n");
+  printf("          AULA 3-B\n");
+  printf("================================\n\n");
+
   printf("       +----------------+\n");
-  printf("       |    PIZARRON     |\n");
-  printf("       | x + y = 20      |\n");
-  printf("       | H2O = AGUA      |\n");
+  printf("       |    PIZARRON    |\n");
+  printf("       | x + y = 20     |\n");
+  printf("       | H2O = AGUA     |\n");
   printf("       +----------------+\n\n");
+
   printf("          .-''''-.\n");
   printf("         /  o  o  \\\n");
   printf("        |    ^     |\n");
   printf("        |  \\___/   |\n");
   printf("         \\_________/\n");
   printf("          PROF. GERMAN\n\n");
-  col(3);printf("\"Venga, vamos al lio.\"\n");col(5);
-  B();consoleClear();printf("A Todas\nX Matematicas\nY Espanol\nL Quimica\nSELECT Hablar\nB Volver");
+
+  printf("\"Venga, vamos al lio.\"\n");
+
+  B();
+  consoleClear();
+
+  printf("A Todas\n");
+  printf("X Matematicas\n");
+  printf("Y Espanol\n");
+  printf("L Quimica\n");
+  printf("SELECT Hablar\n");
+  printf("B Volver\n");
+
   while(1){
-   swiWaitForVBlank();scanKeys();uint32_t k=keysDown();
-   if(k&KEY_A){examen(NULL);break;}
-   if(k&KEY_X){examen("Matematicas");break;}
-   if(k&KEY_Y){examen("Espanol");break;}
-   if(k&KEY_L){examen("Quimica");break;}
-   if(k&KEY_SELECT){charla();break;}
+   swiWaitForVBlank();
+   scanKeys();
+
+   uint32_t k=keysDown();
+
+   if(k&KEY_A){
+    examen(NULL);
+    break;
+   }
+
+   if(k&KEY_X){
+    examen("Matematicas");
+    break;
+   }
+
+   if(k&KEY_Y){
+    examen("Espanol");
+    break;
+   }
+
+   if(k&KEY_L){
+    examen("Quimica");
+    break;
+   }
+
+   if(k&KEY_SELECT){
+    charla();
+    break;
+   }
+
    if(k&KEY_B)return;
   }
  }
@@ -231,44 +405,98 @@ void aula(){
 
 void menu(){
  while(1){
-  T();consoleClear();col(6);
-  printf("================================\n      PROFESOR GERMAN\n================================\n\n");
-  col(5);printf("       ¡VENGA, AL LIO!\n\n");
-  printf("       [ AULA 3-B ]\n\n");
-  B();consoleClear();col(3);
-  printf("========= MENU =========\n\n");col(5);
+  T();
+  consoleClear();
+
+  printf("================================\n");
+  printf("        PROFESOR GERMAN\n");
+  printf("================================\n\n");
+  printf("        ¡VENGA, AL LIO!\n\n");
+  printf("          [ AULA 3-B ]\n");
+
+  B();
+  consoleClear();
+
+  printf("========= MENU =========\n\n");
   printf("TOCA LA PANTALLA\n\n");
   printf("A  AULA DE GERMAN\n");
   printf("X  CALCULADORA\n");
   printf("Y  RELOJ\n");
   printf("START  SALIR\n");
+
   while(1){
-   swiWaitForVBlank();scanKeys();uint32_t k=keysDown();
-   if(k&KEY_A){aula();break;}
-   if(k&KEY_X){calculadora();break;}
-   if(k&KEY_Y){reloj();break;}
+   swiWaitForVBlank();
+   scanKeys();
+
+   uint32_t k=keysDown();
+
+   if(k&KEY_A){
+    aula();
+    break;
+   }
+
+   if(k&KEY_X){
+    calculadora();
+    break;
+   }
+
+   if(k&KEY_Y){
+    reloj();
+    break;
+   }
+
    if(k&KEY_START)return;
+
    if(k&KEY_TOUCH){
-    touchPosition t;touchRead(&t);
-    if(t.py<70){reloj();break;}
-    if(t.py<140){calculadora();break;}
-    aula();break;
+    touchPosition t;
+    touchRead(&t);
+
+    if(t.py<70){
+     reloj();
+     break;
+    }
+
+    if(t.py<140){
+     calculadora();
+     break;
+    }
+
+    aula();
+    break;
    }
   }
  }
 }
 
 int main(int argc,char**argv){
- videoSetMode(MODE_0_2D);videoSetModeSub(MODE_0_2D);
- vramSetBankA(VRAM_A_MAIN_BG);vramSetBankC(VRAM_C_SUB_BG);
+ videoSetMode(MODE_0_2D);
+ videoSetModeSub(MODE_0_2D);
 
- consoleInit(&top,0,BgType_Text4bpp,BgSize_T_256x256,22,3,true,true);
- consoleInit(&bottom,0,BgType_Text4bpp,BgSize_T_256x256,22,3,false,true);
+ vramSetBankA(VRAM_A_MAIN_BG);
+ vramSetBankC(VRAM_C_SUB_BG);
 
- kbd=keyboardInit(NULL,3,BgType_Text4bpp,BgSize_T_256x512,20,0,false,true);
+ consoleInit(
+  &top,0,BgType_Text4bpp,BgSize_T_256x256,
+  22,3,true,true
+ );
+
+ consoleInit(
+  &bottom,0,BgType_Text4bpp,BgSize_T_256x256,
+  22,3,false,true
+ );
+
+ kbd=keyboardInit(
+  NULL,3,BgType_Text4bpp,BgSize_T_256x512,
+  20,0,false,true
+ );
+
  keyboardShow();
+
  srand((unsigned)time(NULL));
+
  menu();
+
  keyboardHide();
+
  return 0;
 }
