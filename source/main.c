@@ -8,7 +8,32 @@ PrintConsole consolaTop;
 PrintConsole consolaBottom;
 Keyboard *kbd;
 
-/* ---------------- ESTADO ---------------- */
+/* =========================================================
+   SELECCION DE PANTALLAS
+   ========================================================= */
+
+void seleccionar_top(void)
+{
+    consoleSelect(&consolaTop);
+}
+
+void seleccionar_bottom(void)
+{
+    consoleSelect(&consolaBottom);
+}
+
+/* =========================================================
+   COLORES
+   ========================================================= */
+
+void color(int c)
+{
+    consoleSetColor(NULL, (ConsoleColor)c);
+}
+
+/* =========================================================
+   VARIABLES DE LA CALCULADORA
+   ========================================================= */
 
 char entrada[64] = "0";
 char expresion[96] = "";
@@ -18,22 +43,17 @@ double ans = 0.0;
 double memoria = 0.0;
 
 char operacion = 0;
+
 int nuevaEntrada = 1;
-
 int angulo = 0;
-/* 0 = DEG, 1 = RAD, 2 = GRAD */
-
 int modoSCI = 0;
 int errorCalc = 0;
 
-/* ---------------- COLORES ---------------- */
+#define PI 3.14159265358979323846
 
-void color(int c)
-{
-    consoleSetColor(NULL, (ConsoleColor)c);
-}
-
-/* ---------------- VALOR ACTUAL ---------------- */
+/* =========================================================
+   VALOR ACTUAL
+   ========================================================= */
 
 double valorActual(void)
 {
@@ -56,33 +76,45 @@ void ponerNumero(double n)
     nuevaEntrada = 0;
 }
 
+/* =========================================================
+   LIMPIAR
+   ========================================================= */
+
 void limpiar(void)
 {
     strcpy(entrada, "0");
     expresion[0] = '\0';
-    izquierda = 0;
+
+    izquierda = 0.0;
     operacion = 0;
+
     nuevaEntrada = 1;
     errorCalc = 0;
 }
 
-/* ---------------- ANGULOS ---------------- */
+/* =========================================================
+   ANGULOS
+   ========================================================= */
 
 double convertirAngulo(double x)
 {
     if (angulo == 0)
-        return x * M_PI / 180.0;
+        return x * PI / 180.0;
 
     if (angulo == 2)
-        return x * M_PI / 200.0;
+        return x * PI / 200.0;
 
     return x;
 }
 
 const char *nombreAngulo(void)
 {
-    if (angulo == 0) return "DEG";
-    if (angulo == 1) return "RAD";
+    if (angulo == 0)
+        return "DEG";
+
+    if (angulo == 1)
+        return "RAD";
+
     return "GRAD";
 }
 
@@ -94,7 +126,9 @@ void cambiarAngulo(void)
         angulo = 0;
 }
 
-/* ---------------- ENTRADA ---------------- */
+/* =========================================================
+   NUMEROS
+   ========================================================= */
 
 void digito(char d)
 {
@@ -189,48 +223,64 @@ void cambiarSigno(void)
     ponerNumero(-x);
 }
 
-/* ---------------- OPERACIONES ---------------- */
+/* =========================================================
+   OPERACIONES BASICAS Y CIENTIFICAS
+   ========================================================= */
 
 double calcular(double a, double b, char op)
 {
-    if (op == '+') return a + b;
-    if (op == '-') return a - b;
-    if (op == '*') return a * b;
+    int ia;
+    int ib;
+    int i;
+    double r;
+
+    if (op == '+')
+        return a + b;
+
+    if (op == '-')
+        return a - b;
+
+    if (op == '*')
+        return a * b;
 
     if (op == '/') {
-        if (b == 0) return NAN;
+        if (b == 0)
+            return NAN;
+
         return a / b;
     }
 
     if (op == '^')
         return pow(a, b);
 
+    /* nPr */
     if (op == 'P') {
-        int ia = (int)a;
-        int ib = (int)b;
-        double r = 1;
-        int i;
+        ia = (int)a;
+        ib = (int)b;
 
         if (ia < 0 || ib < 0 || ib > ia)
             return NAN;
 
+        r = 1.0;
+
         for (i = 0; i < ib; i++)
-            r *= (ia - i);
+            r *= (double)(ia - i);
 
         return r;
     }
 
+    /* nCr */
     if (op == 'C') {
-        int ia = (int)a;
-        int ib = (int)b;
-        double r = 1;
-        int i;
+        ia = (int)a;
+        ib = (int)b;
 
         if (ia < 0 || ib < 0 || ib > ia)
             return NAN;
 
+        r = 1.0;
+
         for (i = 1; i <= ib; i++)
-            r *= (double)(ia - ib + i) / i;
+            r *= (double)(ia - ib + i) / (double)i;
 
         return r;
     }
@@ -240,13 +290,18 @@ double calcular(double a, double b, char op)
 
 void prepararOperacion(char op)
 {
+    double resultado;
+
     if (errorCalc)
         return;
 
     if (operacion != 0 && !nuevaEntrada) {
-        double resultado;
 
-        resultado = calcular(izquierda, valorActual(), operacion);
+        resultado = calcular(
+            izquierda,
+            valorActual(),
+            operacion
+        );
 
         if (isnan(resultado) || isinf(resultado)) {
             strcpy(entrada, "ERROR");
@@ -257,16 +312,23 @@ void prepararOperacion(char op)
 
         izquierda = resultado;
         ponerNumero(resultado);
+
     } else {
+
         izquierda = valorActual();
     }
 
     operacion = op;
     nuevaEntrada = 1;
 
-    sprintf(expresion, "%.10g %c", izquierda,
-            op == 'P' ? 'P' :
-            op == 'C' ? 'C' : op);
+    sprintf(
+        expresion,
+        "%.10g %c",
+        izquierda,
+        op == 'P' ? 'P' :
+        op == 'C' ? 'C' :
+        op
+    );
 }
 
 void igual(void)
@@ -276,7 +338,11 @@ void igual(void)
     if (!operacion || errorCalc)
         return;
 
-    resultado = calcular(izquierda, valorActual(), operacion);
+    resultado = calcular(
+        izquierda,
+        valorActual(),
+        operacion
+    );
 
     if (isnan(resultado) || isinf(resultado)) {
         strcpy(entrada, "ERROR");
@@ -286,34 +352,44 @@ void igual(void)
     }
 
     ans = resultado;
+
     ponerNumero(resultado);
 
     expresion[0] = '\0';
+
     operacion = 0;
     nuevaEntrada = 1;
 }
 
-/* ---------------- FUNCIONES CIENTIFICAS ---------------- */
+/* =========================================================
+   FUNCIONES CIENTIFICAS
+   ========================================================= */
 
 void funcionUnaria(int f)
 {
-    double x = valorActual();
-    double r = x;
+    double x;
+    double r;
+    double c;
     int i;
+
+    x = valorActual();
+    r = x;
 
     if (errorCalc)
         return;
 
-    if (f == 1) {
+    /* SIN */
+    if (f == 1)
         r = sin(convertirAngulo(x));
-    }
 
-    if (f == 2) {
+    /* COS */
+    if (f == 2)
         r = cos(convertirAngulo(x));
-    }
 
+    /* TAN */
     if (f == 3) {
-        double c = cos(convertirAngulo(x));
+
+        c = cos(convertirAngulo(x));
 
         if (fabs(c) < 0.000000001) {
             strcpy(entrada, "ERROR");
@@ -324,7 +400,9 @@ void funcionUnaria(int f)
         r = tan(convertirAngulo(x));
     }
 
+    /* LOG */
     if (f == 4) {
+
         if (x <= 0) {
             strcpy(entrada, "ERROR");
             errorCalc = 1;
@@ -334,7 +412,9 @@ void funcionUnaria(int f)
         r = log10(x);
     }
 
+    /* LN */
     if (f == 5) {
+
         if (x <= 0) {
             strcpy(entrada, "ERROR");
             errorCalc = 1;
@@ -344,7 +424,9 @@ void funcionUnaria(int f)
         r = log(x);
     }
 
+    /* RAIZ */
     if (f == 6) {
+
         if (x < 0) {
             strcpy(entrada, "ERROR");
             errorCalc = 1;
@@ -354,10 +436,13 @@ void funcionUnaria(int f)
         r = sqrt(x);
     }
 
+    /* X2 */
     if (f == 7)
         r = x * x;
 
+    /* 1/X */
     if (f == 8) {
+
         if (x == 0) {
             strcpy(entrada, "ERROR");
             errorCalc = 1;
@@ -367,37 +452,46 @@ void funcionUnaria(int f)
         r = 1.0 / x;
     }
 
+    /* ABS */
     if (f == 9)
         r = fabs(x);
 
+    /* FACTORIAL */
     if (f == 10) {
+
         if (x < 0 || x != floor(x) || x > 170) {
             strcpy(entrada, "ERROR");
             errorCalc = 1;
             return;
         }
 
-        r = 1;
+        r = 1.0;
 
         for (i = 1; i <= (int)x; i++)
             r *= i;
     }
 
+    /* PORCENTAJE */
     if (f == 11)
         r = x / 100.0;
 
+    /* PI */
     if (f == 12)
-        r = M_PI;
+        r = PI;
 
+    /* E */
     if (f == 13)
-        r = exp(1.0);
+        r = 2.718281828459045;
 
+    /* 10^X */
     if (f == 14)
         r = pow(10.0, x);
 
+    /* E^X */
     if (f == 15)
         r = exp(x);
 
+    /* ENTERO */
     if (f == 16)
         r = floor(x);
 
@@ -408,10 +502,13 @@ void funcionUnaria(int f)
     }
 
     ans = r;
+
     ponerNumero(r);
 }
 
-/* ---------------- MEMORIA ---------------- */
+/* =========================================================
+   MEMORIA
+   ========================================================= */
 
 void memoriaMas(void)
 {
@@ -427,7 +524,7 @@ void memoriaMenos(void)
 
 void memoriaClear(void)
 {
-    memoria = 0;
+    memoria = 0.0;
 }
 
 void memoriaRecall(void)
@@ -435,7 +532,9 @@ void memoriaRecall(void)
     ponerNumero(memoria);
 }
 
-/* ---------------- PANTALLA SUPERIOR ---------------- */
+/* =========================================================
+   PANTALLA SUPERIOR
+   ========================================================= */
 
 void mostrarTop(void)
 {
@@ -444,67 +543,100 @@ void mostrarTop(void)
     consoleClear();
 
     color(CONSOLE_CYAN);
-    iprintf("     CALCULADORA CIENTIFICA\n");
+    printf("     CALCULADORA CIENTIFICA\n");
 
     color(CONSOLE_WHITE);
-    iprintf("-------------------------------\n");
+    printf("-------------------------------\n");
 
     color(CONSOLE_YELLOW);
-    iprintf("EXP: ");
+    printf("EXP: ");
 
     color(CONSOLE_WHITE);
 
     if (expresion[0])
-        iprintf("%s\n", expresion);
+        printf("%s\n", expresion);
     else
-        iprintf("-\n");
+        printf("-\n");
 
     color(CONSOLE_GREEN);
-    iprintf("\nRESULTADO\n");
+    printf("\nRESULTADO\n");
 
     color(CONSOLE_WHITE);
-    iprintf("> %s\n", entrada);
+    printf("> %s\n", entrada);
 
-    iprintf("\n");
-
-    color(CONSOLE_LIGHT_BLUE);
-    iprintf("ANGULO: %s\n", nombreAngulo());
+    printf("\n");
 
     color(CONSOLE_LIGHT_BLUE);
-    iprintf("MEMORIA: %.8g\n", memoria);
+    printf("ANGULO: %s\n", nombreAngulo());
+
+    printf("MEMORIA: %.8g\n", memoria);
 
     color(CONSOLE_WHITE);
-    iprintf("\n");
+    printf("\n");
 
     color(CONSOLE_YELLOW);
-    iprintf("SIN COS TAN = trigonometria\n");
-    iprintf("LOG/LN = logaritmos\n");
-    iprintf("XY = x elevado a y\n");
-    iprintf("NPR/NCR = combinaciones\n");
+    printf("SIN COS TAN = trigonometria\n");
+    printf("LOG/LN = logaritmos\n");
+    printf("XY = potencia\n");
+    printf("NPR/NCR = combinaciones\n");
 
     color(CONSOLE_WHITE);
-    iprintf("\n");
+    printf("\n");
 
     if (errorCalc) {
         color(CONSOLE_RED);
-        iprintf("ERROR: pulsa AC\n");
+        printf("ERROR: pulsa AC\n");
     } else {
         color(CONSOLE_WHITE);
-        iprintf("Toca los botones de abajo.");
+        printf("Toca los botones de abajo.");
     }
 }
 
-/* ---------------- BOTONES ---------------- */
+/* =========================================================
+   TECLADO DE LA CALCULADORA
+   ========================================================= */
 
 const char *botones[7][8] = {
-    {"SIN", "COS", "TAN", "LOG", "7", "8", "9", "/"},
-    {"LN", "SQRT", "X2", "XY", "4", "5", "6", "*"},
-    {"1/X", "ABS", "N!", "%", "1", "2", "3", "-"},
-    {"PI", "E", "DRG", "ANS", "0", ".", "+/-", "+"},
-    {"NPR", "NCR", "10X", "EX", "00", "000", "=", "+"},
-    {"AC", "DEL", "M+", "M-", "MC", "MR", "", ""},
-    {"MODE", "CLR", "", "", "", "", "", ""}
+
+    {
+        "SIN", "COS", "TAN", "LOG",
+        "7", "8", "9", "/"
+    },
+
+    {
+        "LN", "SQRT", "X2", "XY",
+        "4", "5", "6", "*"
+    },
+
+    {
+        "1/X", "ABS", "N!", "%",
+        "1", "2", "3", "-"
+    },
+
+    {
+        "PI", "E", "DRG", "ANS",
+        "0", ".", "+/-", "+"
+    },
+
+    {
+        "NPR", "NCR", "10X", "EX",
+        "00", "000", "=", "+"
+    },
+
+    {
+        "AC", "DEL", "M+", "M-",
+        "MC", "MR", "", ""
+    },
+
+    {
+        "MODE", "CLR", "", "",
+        "", "", "", ""
+    }
 };
+
+/* =========================================================
+   DIBUJAR BOTONES
+   ========================================================= */
 
 void dibujarBoton(const char *texto, int fila, int col)
 {
@@ -517,86 +649,60 @@ void dibujarBoton(const char *texto, int fila, int col)
             color(CONSOLE_WHITE);
     }
 
-    iprintf("%-4s", texto);
+    printf("%-4s", texto);
 
     if (col == 3)
-        iprintf(" ");
+        printf(" ");
 }
+
+/* =========================================================
+   PANTALLA TACTIL
+   ========================================================= */
 
 void mostrarBottom(void)
 {
-    int f, c;
+    int f;
+    int c;
 
     seleccionar_bottom();
 
     consoleClear();
 
     for (f = 0; f < 7; f++) {
-        for (c = 0; c < 8; c++) {
-            dibujarBoton(botones[f][c], f, c);
-        }
 
-        iprintf("\n");
+        for (c = 0; c < 8; c++)
+            dibujarBoton(botones[f][c], f, c);
+
+        printf("\n");
     }
 
     color(CONSOLE_WHITE);
-    iprintf("\n");
-    iprintf("DRG: DEG/RAD/GRAD\n");
-    iprintf("MODE: normal/cientifica");
+
+    printf("\n");
+    printf("DRG: DEG/RAD/GRAD\n");
+    printf("MODE: normal/cientifica");
 }
 
-/* ---------------- AYUDA ---------------- */
-
-void ayuda(void)
-{
-    seleccionar_top();
-
-    consoleClear();
-
-    color(CONSOLE_CYAN);
-    iprintf("       AYUDA RAPIDA\n");
-    iprintf("-------------------------------\n\n");
-
-    color(CONSOLE_WHITE);
-    iprintf("1. Toca un numero.\n\n");
-    iprintf("2. Toca + - * / o XY.\n\n");
-    iprintf("3. Escribe el segundo numero.\n\n");
-    iprintf("4. Pulsa =.\n\n");
-
-    color(CONSOLE_YELLOW);
-    iprintf("Ejemplo:\n");
-    color(CONSOLE_WHITE);
-    iprintf("2  XY  3  =  8\n\n");
-
-    color(CONSOLE_YELLOW);
-    iprintf("Cientifica:\n");
-    color(CONSOLE_WHITE);
-    iprintf("SIN COS TAN LOG LN SQRT\n");
-    iprintf("1/X ABS N! 10X EX %%\n");
-
-    color(CONSOLE_LIGHT_BLUE);
-    iprintf("\nNPR/NCR: permutaciones\n");
-    iprintf("DRG: grados/radianes/grads\n");
-
-    color(CONSOLE_WHITE);
-    iprintf("\nToca CLR para regresar.");
-}
-
-/* ---------------- ACCIONES TACTILES ---------------- */
+/* =========================================================
+   ACCIONES DE LOS BOTONES
+   ========================================================= */
 
 void tocar(int fila, int col)
 {
-    char *b;
+    const char *b;
 
-    if (fila < 0 || fila > 6 || col < 0 || col > 7)
+    if (fila < 0 || fila > 6)
         return;
 
-    b = (char *)botones[fila][col];
+    if (col < 0 || col > 7)
+        return;
+
+    b = botones[fila][col];
 
     if (!strcmp(b, ""))
         return;
 
-    /* NUMEROS */
+    /* ---------------- NUMEROS ---------------- */
 
     if (!strcmp(b, "0")) {
         digito('0');
@@ -663,7 +769,7 @@ void tocar(int fila, int col)
         return;
     }
 
-    /* OPERACIONES */
+    /* ---------------- OPERACIONES ---------------- */
 
     if (!strcmp(b, "+")) {
         prepararOperacion('+');
@@ -705,7 +811,7 @@ void tocar(int fila, int col)
         return;
     }
 
-    /* CIENTIFICAS */
+    /* ---------------- CIENTIFICAS ---------------- */
 
     if (!strcmp(b, "SIN")) {
         funcionUnaria(1);
@@ -782,7 +888,7 @@ void tocar(int fila, int col)
         return;
     }
 
-    /* OTROS */
+    /* ---------------- OTROS ---------------- */
 
     if (!strcmp(b, "+/-")) {
         cambiarSigno();
@@ -804,6 +910,8 @@ void tocar(int fila, int col)
         return;
     }
 
+    /* ---------------- MEMORIA ---------------- */
+
     if (!strcmp(b, "M+")) {
         memoriaMas();
         return;
@@ -824,30 +932,44 @@ void tocar(int fila, int col)
         return;
     }
 
+    /* ---------------- MODO ---------------- */
+
+    if (!strcmp(b, "MODE")) {
+
+        modoSCI = !modoSCI;
+
+        if (!errorCalc)
+            ponerNumero(valorActual());
+
+        return;
+    }
+
     if (!strcmp(b, "CLR")) {
         limpiar();
         return;
     }
-
-    if (!strcmp(b, "MODE")) {
-        modoSCI = !modoSCI;
-        ponerNumero(valorActual());
-        return;
-    }
 }
 
-/* ---------------- MAIN ---------------- */
+/* =========================================================
+   MAIN
+   ========================================================= */
 
 int main(void)
 {
     touchPosition touch;
-    int f, c;
+
+    int f;
+    int c;
+
+    /* ---------------- VIDEO ---------------- */
 
     videoSetMode(MODE_0_2D);
     videoSetModeSub(MODE_0_2D);
 
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankC(VRAM_C_SUB_BG);
+
+    /* ---------------- CONSOLA SUPERIOR ---------------- */
 
     consoleInit(
         &consolaTop,
@@ -860,6 +982,8 @@ int main(void)
         true
     );
 
+    /* ---------------- CONSOLA INFERIOR ---------------- */
+
     consoleInit(
         &consolaBottom,
         0,
@@ -870,6 +994,8 @@ int main(void)
         false,
         true
     );
+
+    /* ---------------- TECLADO ---------------- */
 
     kbd = keyboardInit(
         NULL,
@@ -884,6 +1010,8 @@ int main(void)
 
     keyboardHide();
 
+    /* ---------------- INICIO ---------------- */
+
     seleccionar_top();
     consoleClear();
 
@@ -893,19 +1021,26 @@ int main(void)
     mostrarTop();
     mostrarBottom();
 
+    /* ---------------- BUCLE ---------------- */
+
     while (1) {
+
         swiWaitForVBlank();
 
         scanKeys();
 
         if (keysDown() & KEY_TOUCH) {
+
             touchRead(&touch);
 
             c = touch.px / 32;
             f = touch.py / 24;
 
-            if (c > 7) c = 7;
-            if (f > 6) f = 6;
+            if (c > 7)
+                c = 7;
+
+            if (f > 6)
+                f = 6;
 
             tocar(f, c);
 
