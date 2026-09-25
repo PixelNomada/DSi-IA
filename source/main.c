@@ -76,7 +76,7 @@ void ocultar_teclado(void) {
 int leer_texto(char *buf, int max) {
     int pos = 0;
     buf[0] = 0;
-    iprintf("> ");
+    printf("> ");
     while (1) {
         swiWaitForVBlank();
         scanKeys();
@@ -89,11 +89,11 @@ int leer_texto(char *buf, int max) {
             if ((key == DVK_BACKSPACE || key == 8) && pos > 0) {
                 pos--;
                 buf[pos] = 0;
-                iprintf("\b \b");
+                printf("\b \b");
             } else if (key >= 32 && key < 127 && pos < max-1) {
                 buf[pos++] = (char)key;
                 buf[pos] = 0;
-                iprintf("%c", key);
+                printf("%c", key);
             }
         }
         if (keysDown() & KEY_A) { buf[pos] = 0; return 1; }
@@ -155,64 +155,63 @@ void responder_charla(const char *msg) {
     m[MAX_INPUT-1] = 0;
     a_minusculas(m);
 
-    iprintf("\n\nDSi IA: ");
+    printf("\n\nDSi IA: ");
 
-    // Calculadora
     if (contiene(m, "cuanto es") || contiene(m, "cuánto es") || contiene(m, "calcula") ||
         strchr(m, '+') || strchr(m, '-') || strchr(m, '*') || strchr(m, 'x') || strchr(m, '/') || strchr(m, '^')) {
         int res = 0;
         if (calcular_expresion(m, &res)) {
-            iprintf("El resultado es: %d", res);
+            printf("El resultado es: %d", res);
             return;
         }
     }
 
     if (contiene(m, "hola") || contiene(m, "buenos") || contiene(m, "buenas"))
-        iprintf("Hola! Soy DSi IA, tu asistente escolar. En que te puedo ayudar?");
+        printf("Hola! Soy DSi IA, tu asistente escolar. En que te puedo ayudar?");
     else if (contiene(m, "como estas") || contiene(m, "cómo estás") || contiene(m, "que tal"))
-        iprintf("Estoy muy bien, gracias. Lista para ayudarte a estudiar.");
+        printf("Estoy muy bien, gracias. Lista para ayudarte a estudiar.");
     else if (contiene(m, "quien eres") || contiene(m, "quién eres"))
-        iprintf("Soy DSi IA, tu asistente educativa para DSi XL. Se de Matematicas, Espanol y Quimica.");
+        printf("Soy DSi IA, tu asistente educativa para DSi XL. Se de Matematicas, Espanol y Quimica.");
     else if (contiene(m, "que es la quimica") || contiene(m, "qué es la química"))
-        iprintf("La Quimica estudia la materia, su composicion y las transformaciones que sufre.");
+        printf("La Quimica estudia la materia, su composicion y las transformaciones que sufre.");
     else if (contiene(m, "que es un atomo") || contiene(m, "qué es un átomo"))
-        iprintf("El atomo es la unidad mas pequena de un elemento. Tiene protones, neutrones y electrones.");
+        printf("El atomo es la unidad mas pequena de un elemento. Tiene protones, neutrones y electrones.");
     else if (contiene(m, "que es un verbo"))
-        iprintf("Un verbo expresa acciones, estados o procesos. Ejemplo: correr, estudiar, ser.");
+        printf("Un verbo expresa acciones, estados o procesos. Ejemplo: correr, estudiar, ser.");
     else if (contiene(m, "que es un sustantivo"))
-        iprintf("Un sustantivo nombra personas, animales, cosas o ideas.");
+        printf("Un sustantivo nombra personas, animales, cosas o ideas.");
     else if (contiene(m, "que es una fraccion") || contiene(m, "qué es una fracción"))
-        iprintf("Una fraccion representa partes de un todo. Tiene numerador y denominador.");
+        printf("Una fraccion representa partes de un todo. Tiene numerador y denominador.");
     else if (contiene(m, "que es una ecuacion") || contiene(m, "qué es una ecuación"))
-        iprintf("Una ecuacion es una igualdad con una incognita (x). Hay que encontrar el valor de x.");
+        printf("Una ecuacion es una igualdad con una incognita (x). Hay que encontrar el valor de x.");
     else if (contiene(m, "gracias"))
-        iprintf("De nada! Sigue estudiando, tu puedes.");
+        printf("De nada! Sigue estudiando, tu puedes.");
     else if (contiene(m, "adios") || contiene(m, "adiós") || contiene(m, "hasta luego"))
-        iprintf("Hasta luego! Que te vaya muy bien en tus estudios.");
+        printf("Hasta luego! Que te vaya muy bien en tus estudios.");
     else
-        iprintf("No estoy segura de entenderte. Prueba preguntar: 'Que es la quimica?', 'Cuanto es 56+7' o usa el modo Leccion.");
+        printf("No estoy segura de entenderte. Prueba preguntar: 'Que es la quimica?', 'Cuanto es 56+7' o usa el modo Leccion.");
 }
 
 void dibujar_titulo(void) {
-    iprintf("\x1b[2J");
-    iprintf("================================\n");
-    iprintf("         DSi  IA\n");
-    iprintf("   Asistente escolar DSi XL\n");
-    iprintf("================================\n\n");
+    printf("\x1b[2J");
+    printf("================================\n");
+    printf("         DSi  IA\n");
+    printf("   Asistente escolar DSi XL\n");
+    printf("================================\n\n");
 }
 
 void menu_principal(void) {
     ocultar_teclado();
     dibujar_titulo();
-    iprintf("  A - Modo Examen\n");
-    iprintf("  B - Modo Leccion\n");
-    iprintf("  X - Matematicas\n");
-    iprintf("  Y - Espanol\n");
-    iprintf("  L - Quimica\n");
-    iprintf("  R - Cultura General\n");
-    iprintf("  Select - Hablar con DSi IA\n");
-    iprintf("  Start - Salir\n\n");
-    iprintf("  Puntos: %d | Aciertos: %d/%d\n", puntuacion, aciertos, preguntas_hechas);
+    printf("  A - Modo Examen\n");
+    printf("  B - Modo Leccion\n");
+    printf("  X - Matematicas\n");
+    printf("  Y - Espanol\n");
+    printf("  L - Quimica\n");
+    printf("  R - Cultura General\n");
+    printf("  Select - Hablar con DSi IA\n");
+    printf("  Start - Salir\n\n");
+    printf("  Puntos: %d | Aciertos: %d/%d\n", puntuacion, aciertos, preguntas_hechas);
 }
 
 void jugar(const char *cat, int leccion) {
@@ -234,26 +233,26 @@ void jugar(const char *cat, int leccion) {
     for (int q = 0; q < maxq; q++) {
         Pregunta *p = &banco[idx[q]];
         dibujar_titulo();
-        iprintf("Categoria: %s\nPregunta %d/%d\n\n%s\n\n", p->categoria, q+1, maxq, p->pregunta);
+        printf("Categoria: %s\nPregunta %d/%d\n\n%s\n\n", p->categoria, q+1, maxq, p->pregunta);
 
         char resp[MAX_INPUT];
         leer_texto(resp, MAX_INPUT);
         preguntas_hechas++;
 
         if (resp[0] && es_correcta(resp, p->respuesta)) {
-            iprintf("\n\n*** CORRECTO! ***\n");
+            printf("\n\n*** CORRECTO! ***\n");
             aciertos++;
             puntuacion += 10 * p->dificultad;
-            if (leccion) iprintf("\n%s\n", p->explicacion);
+            if (leccion) printf("\n%s\n", p->explicacion);
         } else {
-            iprintf("\n\nIncorrecto.\nRespuesta: %s\n%s\n", p->respuesta, p->explicacion);
+            printf("\n\nIncorrecto.\nRespuesta: %s\n%s\n", p->respuesta, p->explicacion);
         }
-        iprintf("\nPulsa A...");
+        printf("\nPulsa A...");
         esperar_A();
     }
     ocultar_teclado();
     dibujar_titulo();
-    iprintf("Ronda terminada!\nPuntos: %d\nAciertos: %d/%d\n\nPulsa A...", puntuacion, aciertos, preguntas_hechas);
+    printf("Ronda terminada!\nPuntos: %d\nAciertos: %d/%d\n\nPulsa A...", puntuacion, aciertos, preguntas_hechas);
     esperar_A();
 }
 
@@ -261,7 +260,7 @@ void modo_charla(void) {
     iniciar_teclado();
     while (1) {
         dibujar_titulo();
-        iprintf("Habla con DSi IA\nEscribe 'salir' para volver\n\n");
+        printf("Habla con DSi IA\nEscribe 'salir' para volver\n\n");
         char msg[MAX_INPUT];
         if (!leer_texto(msg, MAX_INPUT) || msg[0] == 0) continue;
 
@@ -271,7 +270,7 @@ void modo_charla(void) {
         if (contiene(tmp, "salir") || contiene(tmp, "menu")) break;
 
         responder_charla(msg);
-        iprintf("\n\nPulsa A para continuar...");
+        printf("\n\nPulsa A para continuar...");
         esperar_A();
     }
     ocultar_teclado();
@@ -304,7 +303,7 @@ int main(void) {
             if (k & KEY_SELECT) { modo_charla(); break; }
             if (k & KEY_START) {
                 dibujar_titulo();
-                iprintf("Hasta luego!\nGracias por usar DSi IA.\n");
+                printf("Hasta luego!\nGracias por usar DSi IA.\n");
                 while (1) swiWaitForVBlank();
             }
         }
